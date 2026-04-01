@@ -11,21 +11,22 @@ function normalizeDateValue(value) {
 
   const raw = String(value).trim();
 
-  // Expected UI format
+  // Already in expected DD.MM.YYYY format
   if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
     return raw;
   }
 
-  // ISO-like date and datetime values
+  // ISO date string — extract date part using UTC to avoid day-shift across timezones
   if (/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(raw)) {
     const datePart = raw.slice(0, 10);
     const [year, month, day] = datePart.split('-');
     return `${day}.${month}.${year}`;
   }
 
+  // Last-resort parse: use UTC accessors to avoid timezone shift
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
-    return `${pad(parsed.getDate())}.${pad(parsed.getMonth() + 1)}.${parsed.getFullYear()}`;
+    return `${pad(parsed.getUTCDate())}.${pad(parsed.getUTCMonth() + 1)}.${parsed.getUTCFullYear()}`;
   }
 
   return raw;
@@ -38,21 +39,29 @@ function normalizeTimeValue(value) {
 
   const raw = String(value).trim();
 
+  // Already HH:mm
   if (/^\d{2}:\d{2}$/.test(raw)) {
     return raw;
   }
 
+  // HH:mm:ss — strip seconds
   if (/^\d{2}:\d{2}:\d{2}$/.test(raw)) {
     return raw.slice(0, 5);
   }
 
+  // ISO datetime string — extract UTC time to avoid timezone shift
+  // Apps Script serialises time cells as UTC ISO strings (e.g. 1899-12-30T04:43:00.000Z)
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(raw)) {
-    return raw.slice(11, 16);
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      return `${pad(parsed.getUTCHours())}:${pad(parsed.getUTCMinutes())}`;
+    }
   }
 
+  // Last-resort parse: use UTC accessors
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
-    return `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+    return `${pad(parsed.getUTCHours())}:${pad(parsed.getUTCMinutes())}`;
   }
 
   return raw;
