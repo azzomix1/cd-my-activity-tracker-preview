@@ -11,22 +11,18 @@ function normalizeDateValue(value) {
 
   const raw = String(value).trim();
 
-  // Already in expected DD.MM.YYYY format
+  // Already in expected DD.MM.YYYY format — fast path (used after Apps Script fix)
   if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
     return raw;
   }
 
-  // ISO date string — extract date part using UTC to avoid day-shift across timezones
-  if (/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(raw)) {
-    const datePart = raw.slice(0, 10);
-    const [year, month, day] = datePart.split('-');
-    return `${day}.${month}.${year}`;
-  }
-
-  // Last-resort parse: use UTC accessors to avoid timezone shift
+  // Apps Script sends dates as UTC ISO strings of LOCAL midnight
+  // (e.g. 01.04 at midnight UTC+3 → "2026-03-31T21:00:00.000Z").
+  // Using local Date methods restores the correct local date.
+  // NOTE: this is a temporary fallback; deploy the updated Code.gs to eliminate it.
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
-    return `${pad(parsed.getUTCDate())}.${pad(parsed.getUTCMonth() + 1)}.${parsed.getUTCFullYear()}`;
+    return `${pad(parsed.getDate())}.${pad(parsed.getMonth() + 1)}.${parsed.getFullYear()}`;
   }
 
   return raw;
@@ -39,7 +35,7 @@ function normalizeTimeValue(value) {
 
   const raw = String(value).trim();
 
-  // Already HH:mm
+  // Already HH:mm — fast path (used after Apps Script fix)
   if (/^\d{2}:\d{2}$/.test(raw)) {
     return raw;
   }
@@ -49,19 +45,13 @@ function normalizeTimeValue(value) {
     return raw.slice(0, 5);
   }
 
-  // ISO datetime string — extract UTC time to avoid timezone shift
-  // Apps Script serialises time cells as UTC ISO strings (e.g. 1899-12-30T04:43:00.000Z)
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(raw)) {
-    const parsed = new Date(raw);
-    if (!Number.isNaN(parsed.getTime())) {
-      return `${pad(parsed.getUTCHours())}:${pad(parsed.getUTCMinutes())}`;
-    }
-  }
-
-  // Last-resort parse: use UTC accessors
+  // Apps Script sends time serials as UTC ISO strings of LOCAL time
+  // (e.g. 10:50 in UTC+3 → "1899-12-30T07:50:00.000Z").
+  // Using local getHours() restores the correct local time.
+  // NOTE: temporary fallback — deploy the updated Code.gs to eliminate it.
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
-    return `${pad(parsed.getUTCHours())}:${pad(parsed.getUTCMinutes())}`;
+    return `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
   }
 
   return raw;
