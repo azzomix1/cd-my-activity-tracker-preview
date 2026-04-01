@@ -13,9 +13,11 @@
 .sync-status {
   grid-column: 1 / -1;
   justify-self: center;
-  margin-bottom: -4px;
+  margin: 0 auto -4px;
   padding: 10px 16px;
   border-radius: 999px;
+  width: fit-content;
+  max-width: min(92vw, 640px);
   background: rgba(246, 241, 233, 0.92);
   border: 1px solid rgba(29, 29, 31, 0.08);
   color: #4f3b2e;
@@ -526,6 +528,15 @@
     gap: 15px;
   }
 
+  .sync-status {
+    max-width: min(92vw, 360px);
+    padding: 8px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    line-height: 1.25;
+    margin: 0 auto 2px;
+  }
+
   .calendar-section,
   .activities-section {
     padding: 16px;
@@ -578,9 +589,10 @@
 
   .day {
     font-size: 13px;
+    width: 100%;
     border-radius: 50%;
-    aspect-ratio: auto;
-    min-height: 50px;
+    aspect-ratio: 1 / 1;
+    min-height: 0;
   }
 
   .weekday {
@@ -590,7 +602,7 @@
   }
 
   .calendar-grid {
-    gap: 8px;
+    gap: 6px;
   }
 
   .weekdays {
@@ -731,8 +743,10 @@
 
   .day {
     font-size: 13px;
+    width: 100%;
     border-radius: 50%;
-    min-height: 52px;
+    aspect-ratio: 1 / 1;
+    min-height: 0;
   }
 
   .weekday {
