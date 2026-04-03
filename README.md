@@ -34,14 +34,3 @@ To enable Google Sheets:
 6. Copy the deployment URL and place it into `.env.local` or `.env.production` as `VITE_SHEETS_API_URL=...`.
 7. Run `npm run dev` locally or rebuild the app for GitHub Pages.
 
-The Google Sheet must use the following columns in row 1:
-
-- A: ID
-- B: Дата мероприятия
-- C: Время мероприятия
-- D: Название
-- E: Участник
-- F: Объекты
-- G: Тип
-
-If `VITE_SHEETS_API_URL` is missing, the app automatically falls back to local browser storage.
