@@ -1,4 +1,4 @@
-﻿.container {
+.container {
   max-width: 100%;
   min-height: calc(100vh - 30px);
   margin: 0 auto;
@@ -9,6 +9,7 @@
   position: relative;
   z-index: 1;
 }
+
 .sync-status {
   --sync-pill-collapsed-width: 56px;
   --sync-pill-expanded-padding: 10px 14px;
@@ -38,7 +39,7 @@
 
 .sync-status:hover,
 .sync-status--expanded {
-  width: min(360px, calc(100vw - 28px));
+  width: min(440px, calc(100vw - 28px));
   padding: var(--sync-pill-expanded-padding);
   justify-content: flex-start;
   gap: 12px;
@@ -66,7 +67,7 @@
 
 .sync-status:hover .sync-status__text,
 .sync-status--expanded .sync-status__text {
-  max-width: 260px;
+  max-width: 380px;
   opacity: 1;
   transform: translateX(0);
 }
