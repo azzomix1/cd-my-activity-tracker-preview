@@ -1,6 +1,21 @@
 import CalendarDay from './CalendarDay';
 import { MONTHS, WEEKDAYS, getCalendarData, isToday } from '../utils/dateUtils';
 
+
+/**
+ * Календарь месяца с навигацией, выбором дня и индикаторами активности.
+ *
+ * @param {Object} props Свойства компонента.
+ * @param {number} props.currentYear Текущий год.
+ * @param {number} props.currentMonth Текущий месяц (0-11).
+ * @param {number|null} props.selectedDay Выбранный день месяца.
+ * @param {Record<number, import('../services/activitiesApi').Activity[]>} props.activitiesMap Активности по дням месяца.
+ * @param {(day: number) => void} props.onDaySelect Выбор дня.
+ * @param {(delta: -1 | 1) => void} props.onMonthChange Переключение месяца.
+ * @param {() => void} props.onTodayClick Переход к текущей дате.
+ * @returns {JSX.Element} JSX календаря.
+ */
+
 function Calendar({ 
   currentYear, 
   currentMonth, 

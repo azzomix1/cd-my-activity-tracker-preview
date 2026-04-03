@@ -5,6 +5,13 @@ import ActivityModal from './components/ActivityModal';
 import { useActivities } from './hooks/useActivities';
 import './App.css';
 
+/**
+ * Корневой компонент интерфейса трекера активностей.
+ * Отвечает за состояние выбранной даты, открытие модального окна
+ * и связывает календарь с панелью активностей.
+ *
+ * @returns {JSX.Element} Основной layout приложения.
+ */
 function App() {
   // Текущая дата для инициализации
   const today = new Date();
@@ -113,6 +120,11 @@ function App() {
     : null;
 
   // Обработчики навигации
+  /**
+   * Сдвигает календарь на указанный месяц вперед/назад.
+   * @param {number} delta Смещение месяца (`-1` или `1`).
+   * @returns {void}
+   */
   const handleMonthChange = (delta) => {
     let newMonth = currentMonth + delta;
     let newYear = currentYear;
@@ -130,6 +142,10 @@ function App() {
     setSelectedDay(null);
   };
 
+  /**
+   * Переключает календарь на текущую дату.
+   * @returns {void}
+   */
   const handleTodayClick = () => {
     const now = new Date();
     setCurrentYear(now.getFullYear());
@@ -137,28 +153,52 @@ function App() {
     setSelectedDay(now.getDate());
   };
 
+  /**
+   * Выбирает день в текущем месяце.
+   * @param {number} day День месяца.
+   * @returns {void}
+   */
   const handleDaySelect = (day) => {
     setSelectedDay(day);
   };
 
   // Обработчики модального окна
+  /**
+   * Открывает модальное окно в режиме добавления.
+   * @returns {void}
+   */
   const handleAddClick = () => {
     setEditingActivity(null);
     setModalInstanceKey(prev => prev + 1);
     setIsModalOpen(true);
   };
 
+  /**
+   * Открывает модальное окно в режиме редактирования.
+   * @param {import('./services/activitiesApi').Activity} activity Редактируемая активность.
+   * @returns {void}
+   */
   const handleEditClick = (activity) => {
     setEditingActivity(activity);
     setModalInstanceKey(prev => prev + 1);
     setIsModalOpen(true);
   };
 
+  /**
+   * Закрывает модальное окно и очищает состояние редактирования.
+   * @returns {void}
+   */
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingActivity(null);
   };
 
+  /**
+   * Сохраняет активность через хук (create/update в зависимости от режима).
+   * @param {import('./services/activitiesApi').Activity} activityData Данные активности.
+   * @param {boolean} isEditMode `true` для обновления, `false` для создания.
+   * @returns {Promise<void>}
+   */
   const handleSave = async (activityData, isEditMode) => {
     const result = isEditMode
       ? await updateActivity(activityData)
@@ -172,6 +212,11 @@ function App() {
     window.alert(result.error || 'Не удалось сохранить активность.');
   };
 
+  /**
+   * Удаляет активность после пользовательского подтверждения.
+   * @param {string} id Идентификатор активности.
+   * @returns {Promise<void>}
+   */
   const handleDelete = async (id) => {
     if (window.confirm('Вы уверены, что хотите удалить эту активность?')) {
       const result = await deleteActivity(id);

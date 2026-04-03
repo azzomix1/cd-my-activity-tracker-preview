@@ -9,7 +9,7 @@
   position: relative;
   z-index: 1;
 }
-
+ы
 .sync-status {
   --sync-pill-collapsed-width: 56px;
   --sync-pill-expanded-padding: 10px 14px;
@@ -123,22 +123,25 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 12px;
 }
 
 .month-navigation h2 {
-  font-size: clamp(18px, 3vw, 24px);
+  font-size: clamp(16px, 2.4vw, 22px);
   font-weight: 700;
   letter-spacing: 0.3px;
   color: #1d1d1f;
   margin: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-buttons {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .btn {
@@ -673,6 +676,7 @@
     width: 100%;
     justify-content: center;
     gap: 6px;
+    flex-shrink: 0;
   }
 
   .nav-buttons .btn {

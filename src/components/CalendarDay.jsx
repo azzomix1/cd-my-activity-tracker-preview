@@ -1,3 +1,17 @@
+
+/**
+ * Ячейка дня в календарной сетке.
+ *
+ * @param {Object} props Свойства компонента.
+ * @param {number|null} props.day День месяца или `null` для пустой ячейки.
+ * @param {boolean} props.isToday Флаг текущего дня.
+ * @param {boolean} props.isSelected Флаг выбранного дня.
+ * @param {boolean} props.hasEvents Наличие активностей в дне.
+ * @param {Array<'internal' | 'external'>} props.eventTypes Типы активностей для индикаторов.
+ * @param {(day: number) => void} props.onClick Обработчик клика по дню.
+ * @returns {JSX.Element} JSX ячейки дня.
+ */
+
 function CalendarDay({ day, isToday, isSelected, hasEvents, eventTypes, onClick }) {
   if (!day) {
     return <div className="day empty"></div>;

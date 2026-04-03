@@ -1,9 +1,30 @@
 const API_URL = import.meta.env.VITE_SHEETS_API_URL?.trim();
 
+/**
+ * @typedef {Object} Activity
+ * @property {string} id Уникальный идентификатор активности.
+ * @property {string} date Дата в формате `DD.MM.YYYY`.
+ * @property {string} time Время в формате `HH:mm`.
+ * @property {string} name Название активности.
+ * @property {string} person Участник/ответственный.
+ * @property {string} objects Объект/площадка.
+ * @property {'internal'|'external'} eventType Тип события.
+ */
+
+/**
+ * Дополняет однозначные значения ведущим нулем.
+ * @param {number|string} value Исходное значение.
+ * @returns {string} Двузначная строка.
+ */
 function pad(value) {
   return String(value).padStart(2, '0');
 }
 
+/**
+ * Нормализует входную дату к формату `DD.MM.YYYY`.
+ * @param {unknown} value Входное значение даты из API/формы.
+ * @returns {string} Нормализованная дата либо исходная строка.
+ */
 function normalizeDateValue(value) {
   if (!value) {
     return '';
@@ -28,6 +49,11 @@ function normalizeDateValue(value) {
   return raw;
 }
 
+/**
+ * Нормализует входное время к формату `HH:mm`.
+ * @param {unknown} value Входное значение времени из API/формы.
+ * @returns {string} Нормализованное время либо исходная строка.
+ */
 function normalizeTimeValue(value) {
   if (!value) {
     return '';
@@ -57,6 +83,11 @@ function normalizeTimeValue(value) {
   return raw;
 }
 
+/**
+ * Приводит тип события к строгому набору `'internal' | 'external'`.
+ * @param {unknown} value Входной тип события.
+ * @returns {'internal'|'external'} Нормализованный тип.
+ */
 function normalizeEventType(value) {
   if (!value) {
     return 'internal';
@@ -68,6 +99,11 @@ function normalizeEventType(value) {
     : 'internal';
 }
 
+/**
+ * Приводит произвольный объект активности к стабильной структуре `Activity`.
+ * @param {Partial<Activity>} [activity={}] Частично заполненная активность.
+ * @returns {Activity} Нормализованная активность.
+ */
 export function normalizeActivity(activity = {}) {
   return {
     id: String(activity.id ?? ''),
@@ -80,16 +116,31 @@ export function normalizeActivity(activity = {}) {
   };
 }
 
+/**
+ * Проверяет, задан ли URL Google Sheets API в переменных окружения.
+ * @returns {boolean} `true`, если API URL доступен.
+ */
 export function isSheetsApiConfigured() {
   return Boolean(API_URL);
 }
 
+/**
+ * Создает объект ошибки с HTTP-статусом.
+ * @param {string} message Текст ошибки.
+ * @param {number} status HTTP-статус.
+ * @returns {Error & {status: number}} Ошибка с дополнительным полем `status`.
+ */
 function buildApiError(message, status) {
   const error = new Error(message);
   error.status = status;
   return error;
 }
 
+/**
+ * Безопасно читает JSON из ответа сервера.
+ * @param {Response} response Fetch response.
+ * @returns {Promise<any>} Распарсенный JSON-объект.
+ */
 async function readJson(response) {
   const text = await response.text();
 
@@ -104,6 +155,12 @@ async function readJson(response) {
   }
 }
 
+/**
+ * Выполняет HTTP-запрос к Google Sheets API и валидирует успешный ответ.
+ * @param {string} [path=''] Суффикс URL, включая query string.
+ * @param {RequestInit} [options={}] Опции запроса fetch.
+ * @returns {Promise<any>} Полезная нагрузка ответа API.
+ */
 async function request(path = '', options = {}) {
   if (!API_URL) {
     throw buildApiError('Не задан адрес API для Google Sheets.', 500);
@@ -127,6 +184,12 @@ async function request(path = '', options = {}) {
   return payload;
 }
 
+/**
+ * Отправляет POST-действие в API с единым контрактом payload.
+ * @param {'create'|'update'|'delete'} action Имя действия API.
+ * @param {Object} [payload={}] Данные действия.
+ * @returns {Promise<any>} Ответ API.
+ */
 function post(action, payload = {}) {
   return request('', {
     method: 'POST',
@@ -137,6 +200,10 @@ function post(action, payload = {}) {
   });
 }
 
+/**
+ * Загружает список активностей из Google Sheets API.
+ * @returns {Promise<Activity[]>} Нормализованный массив активностей.
+ */
 export async function fetchActivitiesFromApi() {
   const payload = await request('?action=list');
   return Array.isArray(payload.items)
@@ -144,16 +211,31 @@ export async function fetchActivitiesFromApi() {
     : [];
 }
 
+/**
+ * Создает активность через API.
+ * @param {Activity} activity Данные новой активности.
+ * @returns {Promise<Activity>} Созданная и нормализованная активность.
+ */
 export async function createActivityInApi(activity) {
   const payload = await post('create', { activity });
   return normalizeActivity(payload.item ?? activity);
 }
 
+/**
+ * Обновляет активность через API.
+ * @param {Activity} activity Обновленные данные активности.
+ * @returns {Promise<Activity>} Обновленная и нормализованная активность.
+ */
 export async function updateActivityInApi(activity) {
   const payload = await post('update', { activity });
   return normalizeActivity(payload.item ?? activity);
 }
 
+/**
+ * Удаляет активность по ID через API.
+ * @param {string|number} id Идентификатор активности.
+ * @returns {Promise<any>} Ответ API по операции удаления.
+ */
 export async function deleteActivityInApi(id) {
   return post('delete', { id: String(id) });
 }

@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { toInputDateFormat, fromInputDateFormat } from '../utils/dateUtils';
 
+/**
+ * Формирует начальные значения полей модального окна.
+ *
+ * @param {import('../services/activitiesApi').Activity|null} activity Редактируемая активность или `null`.
+ * @param {Date|null} selectedDate Выбранная дата календаря для режима создания.
+ * @returns {{date: string, time: string, name: string, person: string, objects: string, eventType: 'internal'|'external'}}
+ * Начальное состояние формы.
+ */
 function createInitialFormData(activity, selectedDate) {
   if (activity) {
     const dateParts = activity.date.split('.');
@@ -26,6 +34,19 @@ function createInitialFormData(activity, selectedDate) {
   };
 }
 
+/**
+ * Модальное окно добавления/редактирования активности.
+ *
+ * @param {Object} props Свойства компонента.
+ * @param {boolean} props.isOpen Флаг открытия окна.
+ * @param {() => void} props.onClose Обработчик закрытия окна.
+ * @param {(activityData: import('../services/activitiesApi').Activity, isEditMode: boolean) => Promise<void>} props.onSave Обработчик сохранения.
+ * @param {import('../services/activitiesApi').Activity|null} props.activity Активность для редактирования или `null`.
+ * @param {Date|null} props.selectedDate Выбранная дата календаря.
+ * @param {{names: string[], persons: string[], objects: string[]}} props.suggestions Данные автодополнения.
+ * @param {boolean} props.isSubmitting Флаг отправки формы.
+ * @returns {JSX.Element|null} JSX модального окна либо `null`, если окно закрыто.
+ */
 function ActivityModal({ 
   isOpen, 
   onClose, 

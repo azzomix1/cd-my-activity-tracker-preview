@@ -1,6 +1,19 @@
 import ActivityItem from './ActivityItem';
 import { MONTHS } from '../utils/dateUtils';
 
+/**
+ * Панель активностей выбранного дня.
+ *
+ * @param {Object} props Свойства компонента.
+ * @param {number|null} props.selectedDay Выбранный день месяца или `null`.
+ * @param {number} props.currentMonth Текущий месяц (`0..11`).
+ * @param {number} props.currentYear Текущий год.
+ * @param {import('../services/activitiesApi').Activity[]} props.activities Список активностей на выбранную дату.
+ * @param {() => void} props.onAddClick Обработчик добавления активности.
+ * @param {(activity: import('../services/activitiesApi').Activity) => void} props.onEdit Обработчик редактирования.
+ * @param {(id: string) => void} props.onDelete Обработчик удаления.
+ * @returns {JSX.Element} Блок с заголовком даты и списком активностей.
+ */
 function ActivitiesPanel({ 
   selectedDay, 
   currentMonth, 

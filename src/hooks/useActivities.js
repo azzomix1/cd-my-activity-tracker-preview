@@ -8,10 +8,19 @@ import {
   updateActivityInApi,
 } from '../services/activitiesApi';
 
+/**
+ * Генерирует client-side ID для новой активности до записи в API.
+ * @returns {string} Псевдоуникальный идентификатор.
+ */
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
+/**
+ * Преобразует дату `DD.MM.YYYY` в ключ сортировки `YYYY-MM-DD`.
+ * @param {string} dateString Дата в формате `DD.MM.YYYY`.
+ * @returns {string} Ключ для лексикографической сортировки дат.
+ */
 function getDateSortValue(dateString) {
   const parts = dateString.split('.');
 
@@ -22,6 +31,11 @@ function getDateSortValue(dateString) {
   return `${parts[2]}-${parts[1]}-${parts[0]}`;
 }
 
+/**
+ * Сортирует активности по дате, времени и названию.
+ * @param {import('../services/activitiesApi').Activity[]} activities Массив активностей.
+ * @returns {import('../services/activitiesApi').Activity[]} Новый отсортированный массив.
+ */
 function sortActivities(activities) {
   return [...activities].sort((left, right) => {
     const dateComparison = getDateSortValue(left.date).localeCompare(getDateSortValue(right.date));
@@ -40,10 +54,30 @@ function sortActivities(activities) {
   });
 }
 
+/**
+ * Возвращает единый текст ошибки при отсутствии конфигурации API.
+ * @returns {string} Текст ошибки конфигурации.
+ */
 function getApiConfigurationError() {
   return 'Не задан адрес API для Google Sheets.';
 }
 
+/**
+ * Хук управления активностями: загрузка, фильтрация по датам и CRUD через Google Sheets API.
+ *
+ * @returns {{
+ * activities: import('../services/activitiesApi').Activity[],
+ * isLoading: boolean,
+ * isSaving: boolean,
+ * syncError: string,
+ * getActivitiesForMonth: (year: number, month: number) => Record<number, import('../services/activitiesApi').Activity[]>,
+ * getActivitiesForDate: (year: number, month: number, day: number) => import('../services/activitiesApi').Activity[],
+ * addActivity: (activityData: Partial<import('../services/activitiesApi').Activity>) => Promise<{success: boolean, id?: string, error?: string}>,
+ * updateActivity: (activityData: import('../services/activitiesApi').Activity) => Promise<{success: boolean, error?: string}>,
+ * deleteActivity: (id: string|number) => Promise<{success: boolean, error?: string}>,
+ * getUniqueValues: (field: 'name'|'person'|'objects') => string[]
+ * }}
+ */
 export function useActivities() {
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

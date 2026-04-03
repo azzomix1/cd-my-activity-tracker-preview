@@ -1,3 +1,22 @@
+/** API Smoke Test Script
+  * Этот скрипт выполняет базовые проверки API для создания, обновления, получения и удаления активности.
+  * Он читает URL API из файла .env.local, выполняет последовательные запросы и выводит результаты в консоль.
+  * Если все операции выполняются успешно, скрипт завершится с кодом 0, иначе - с кодом 1.
+  * @param {string} .env.local - Файл, содержащий URL API в формате VITE_SHEETS_API_URL=...
+  * @returns {void}
+  * @param {boolean} create.success - Успех операции создания активности
+  * @param {boolean} update.success - Успех операции обновления активности
+  * @param {boolean} delete.success - Успех операции удаления активности
+  * @param {number} found1 - Количество найденных записей после создания активности
+  * @param {number} found3 - Количество найденных записей после удаления активности
+  * @param {string} row2.name - Название активности после обновления
+  * @param {string} row2.eventType - Тип события активности после обновления
+  * @param {string} UI_FLOW_SMOKE - Результат теста в формате PASS или FAIL
+  * @param {string} UI_FLOW_SMOKE_ERROR - Сообщение об ошибке, если тест не прошел
+  * @returns {number} Код завершения: 0 - успех, 1 - ошибка
+  */
+
+
 $ErrorActionPreference = 'Stop'
 
 try {

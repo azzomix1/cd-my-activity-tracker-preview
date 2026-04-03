@@ -1,3 +1,12 @@
+/**
+ * Отрисовывает одну карточку активности.
+ *
+ * @param {Object} props Свойства компонента.
+ * @param {import('../services/activitiesApi').Activity} props.activity Данные активности.
+ * @param {(activity: import('../services/activitiesApi').Activity) => void} props.onEdit Обработчик редактирования.
+ * @param {(id: string) => void} props.onDelete Обработчик удаления.
+ * @returns {JSX.Element} Карточка активности с действиями.
+ */
 function ActivityItem({ activity, onEdit, onDelete }) {
   const eventTypeClass = activity.eventType === 'external' ? 'activity-item--external' : 'activity-item--internal';
   
