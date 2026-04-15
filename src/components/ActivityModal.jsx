@@ -20,7 +20,8 @@ function createInitialFormData(activity, selectedDate) {
       name: activity.name || '',
       person: activity.person || '',
       objects: activity.objects || activity.project || '',
-      eventType: activity.eventType || 'internal'
+      eventType: activity.eventType || 'internal',
+      visibility: activity.visibility || 'public',
     };
   }
 
@@ -30,7 +31,8 @@ function createInitialFormData(activity, selectedDate) {
     name: '',
     person: '',
     objects: '',
-    eventType: 'internal'
+    eventType: 'internal',
+    visibility: 'public',
   };
 }
 
@@ -75,7 +77,8 @@ function ActivityModal({
       name: formData.name,
       person: formData.person,
       objects: formData.objects,
-      eventType: formData.eventType
+      eventType: formData.eventType,
+      visibility: formData.visibility,
     };
 
     await onSave(activityData, isEditMode);
@@ -190,6 +193,21 @@ function ActivityModal({
             >
               <option value="internal">Внутреннее</option>
               <option value="external">Внешнее</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="visibility">Видимость *</label>
+            <select
+              id="visibility"
+              name="visibility"
+              value={formData.visibility}
+              onChange={handleChange}
+              disabled={isSubmitting}
+              required
+            >
+              <option value="public">Публичное</option>
+              <option value="private">Личное</option>
             </select>
           </div>
 

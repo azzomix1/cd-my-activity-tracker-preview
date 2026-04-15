@@ -4,7 +4,7 @@
 
 const SPREADSHEET_ID = '1PrNCGIfQWE5hRR34Aobd1rDNh04NmqWO5i7eLu_Mn9Y';
 const SHEET_NAME = 'База';
-const HEADER_ROW = ['ID', 'Дата мероприятия', 'Время мероприятия', 'Название', 'Участник', 'Объекты', 'Тип'];
+const HEADER_ROW = ['ID', 'Дата мероприятия', 'Время мероприятия', 'Название', 'Участник', 'Объекты', 'Тип', 'Видимость'];
 // Часовой пояс таблицы — Новосибирск (UTC+7).
 // Все даты и времена форматируются в этом поясе, чтобы все пользователи
 // видели одинаковое время независимо от часового пояса их браузера.
@@ -74,7 +74,7 @@ function listActivities_() {
   }
 
   return sheet
-    .getRange(2, 1, lastRow - 1, 7)
+    .getRange(2, 1, lastRow - 1, 8)
     .getValues()
     .filter(function(row) {
       return row[0];
@@ -129,7 +129,7 @@ function updateActivity_(activity) {
   row[2] = "'" + row[2];  // time
 
   const rowIndex = findRowById_(sheet, normalized.id);
-  sheet.getRange(rowIndex, 1, 1, 7).setValues([row]);
+  sheet.getRange(rowIndex, 1, 1, 8).setValues([row]);
   return normalized;
 }
 
@@ -220,7 +220,45 @@ function normalizeActivity_(activity) {
     person: activity.person ? String(activity.person) : '',
     objects: activity.objects ? String(activity.objects) : '',
     eventType: normalizeEventType_(activity.eventType),
+    visibility: normalizeVisibility_(activity.visibility),
   };
+}
+
+/**
+ * Нормализует видимость активности к значениям таблицы: "личное" или "публичное".
+ *
+ * @param {string} value Значение видимости.
+ * @returns {string} Нормализованная видимость: "личное" или "публичное".
+ */
+function normalizeVisibility_(value) {
+  const normalized = value ? String(value).toLowerCase() : '';
+  return normalized === 'private' || normalized === 'личное' ? 'личное' : 'публичное';
+}
+
+/**
+ * Помечает все существующие строки без значения видимости как "публичное".
+ * Запустить вручную один раз после добавления колонки H в таблицу.
+ *
+ * @returns {void}
+ */
+function migrateVisibilityColumn() {
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) {
+    return;
+  }
+
+  var range = sheet.getRange(2, 8, lastRow - 1, 1);
+  var values = range.getValues();
+
+  for (var i = 0; i < values.length; i++) {
+    if (!values[i][0]) {
+      values[i][0] = 'публичное';
+    }
+  }
+
+  range.setValues(values);
 }
 
 /**
@@ -285,6 +323,7 @@ function mapRowToActivity_(row) {
     person: String(row[4] || ''),
     objects: String(row[5] || ''),
     eventType: String(row[6] || '').toLowerCase() === 'внешнее' ? 'external' : 'internal',
+    visibility: String(row[7] || '').toLowerCase() === 'личное' ? 'private' : 'public',
   };
 }
 
@@ -303,6 +342,7 @@ function mapActivityToRow_(activity) {
     activity.person,
     activity.objects,
     activity.eventType,
+    activity.visibility,
   ];
 }
 

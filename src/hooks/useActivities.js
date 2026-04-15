@@ -7,6 +7,7 @@ import {
   normalizeActivity,
   updateActivityInApi,
 } from '../services/activitiesApi';
+import { isPrivateActivity, isPublicActivity } from '../auth/accessPolicy';
 
 /**
  * Генерирует client-side ID для новой активности до записи в API.
@@ -135,6 +136,10 @@ export function useActivities() {
     const result = {};
 
     activities.forEach((activity) => {
+      if (isPrivateActivity(activity)) {
+        return;
+      }
+
       if (!activity.date) {
         return;
       }
@@ -171,7 +176,7 @@ export function useActivities() {
     const dateStr = `${String(day).padStart(2, '0')}.${String(month + 1).padStart(2, '0')}.${year}`;
 
     return activities
-      .filter((activity) => activity.date === dateStr)
+      .filter((activity) => activity.date === dateStr && isPublicActivity(activity))
       .sort((a, b) => {
         const timeA = a.time || '';
         const timeB = b.time || '';

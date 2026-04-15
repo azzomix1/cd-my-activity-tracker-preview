@@ -9,6 +9,7 @@ const API_URL = import.meta.env.VITE_SHEETS_API_URL?.trim();
  * @property {string} person Участник/ответственный.
  * @property {string} objects Объект/площадка.
  * @property {'internal'|'external'} eventType Тип события.
+ * @property {'public'|'private'} visibility Видимость мероприятия.
  */
 
 /**
@@ -84,6 +85,22 @@ function normalizeTimeValue(value) {
 }
 
 /**
+ * Нормализует видимость мероприятия к строгому набору `'public' | 'private'`.
+ * @param {unknown} value Входное значение видимости.
+ * @returns {'public'|'private'} Нормализованная видимость.
+ */
+function normalizeVisibility(value) {
+  if (!value) {
+    return 'public';
+  }
+
+  const normalized = value.toString().trim().toLowerCase();
+  return normalized === 'private' || normalized === 'личное'
+    ? 'private'
+    : 'public';
+}
+
+/**
  * Приводит тип события к строгому набору `'internal' | 'external'`.
  * @param {unknown} value Входной тип события.
  * @returns {'internal'|'external'} Нормализованный тип.
@@ -113,6 +130,7 @@ export function normalizeActivity(activity = {}) {
     person: activity.person ?? '',
     objects: activity.objects ?? activity.project ?? '',
     eventType: normalizeEventType(activity.eventType),
+    visibility: normalizeVisibility(activity.visibility),
   };
 }
 
