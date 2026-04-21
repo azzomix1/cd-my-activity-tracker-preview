@@ -33,7 +33,7 @@ jobs:
 
       - name: Build project
         env:
-          VITE_SHEETS_API_URL: ${{ vars.VITE_SHEETS_API_URL }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: npm run build
 
       - name: Setup Pages

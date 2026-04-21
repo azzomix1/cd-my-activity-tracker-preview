@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_SHEETS_API_URL?.trim();
+const API_URL = import.meta.env.VITE_API_URL?.trim();
 
 /**
  * @typedef {Object} Activity
@@ -33,15 +33,12 @@ function normalizeDateValue(value) {
 
   const raw = String(value).trim();
 
-  // Already in expected DD.MM.YYYY format — fast path (used after Apps Script fix)
+  // Already in expected DD.MM.YYYY format.
   if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
     return raw;
   }
 
-  // Apps Script sends dates as UTC ISO strings of LOCAL midnight
-  // (e.g. 01.04 at midnight UTC+3 → "2026-03-31T21:00:00.000Z").
-  // Using local Date methods restores the correct local date.
-  // NOTE: this is a temporary fallback; deploy the updated Code.gs to eliminate it.
+  // Databases and forms may still provide ISO-like date strings.
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
     return `${pad(parsed.getDate())}.${pad(parsed.getMonth() + 1)}.${parsed.getFullYear()}`;
@@ -62,7 +59,7 @@ function normalizeTimeValue(value) {
 
   const raw = String(value).trim();
 
-  // Already HH:mm — fast path (used after Apps Script fix)
+  // Already HH:mm.
   if (/^\d{2}:\d{2}$/.test(raw)) {
     return raw;
   }
@@ -72,10 +69,7 @@ function normalizeTimeValue(value) {
     return raw.slice(0, 5);
   }
 
-  // Apps Script sends time serials as UTC ISO strings of LOCAL time
-  // (e.g. 10:50 in UTC+3 → "1899-12-30T07:50:00.000Z").
-  // Using local getHours() restores the correct local time.
-  // NOTE: temporary fallback — deploy the updated Code.gs to eliminate it.
+  // API payloads may still provide time values in ISO-like form.
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
     return `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
@@ -135,10 +129,10 @@ export function normalizeActivity(activity = {}) {
 }
 
 /**
- * Проверяет, задан ли URL Google Sheets API в переменных окружения.
+ * Проверяет, задан ли URL backend API в переменных окружения.
  * @returns {boolean} `true`, если API URL доступен.
  */
-export function isSheetsApiConfigured() {
+export function isActivitiesApiConfigured() {
   return Boolean(API_URL);
 }
 
@@ -169,24 +163,23 @@ async function readJson(response) {
   try {
     return JSON.parse(text);
   } catch {
-    throw buildApiError('Сервер Google Sheets вернул невалидный JSON.', response.status);
+    throw buildApiError('Сервер вернул невалидный JSON.', response.status);
   }
 }
 
 /**
- * Выполняет HTTP-запрос к Google Sheets API и валидирует успешный ответ.
+ * Выполняет HTTP-запрос к backend API и валидирует успешный ответ.
  * @param {string} [path=''] Суффикс URL, включая query string.
  * @param {RequestInit} [options={}] Опции запроса fetch.
  * @returns {Promise<any>} Полезная нагрузка ответа API.
  */
 async function request(path = '', options = {}) {
   if (!API_URL) {
-    throw buildApiError('Не задан адрес API для Google Sheets.', 500);
+    throw buildApiError('Не задан адрес backend API.', 500);
   }
 
   const response = await fetch(`${API_URL}${path}`, {
     cache: 'no-store',
-    redirect: 'follow',
     ...options,
   });
 
@@ -194,7 +187,7 @@ async function request(path = '', options = {}) {
 
   if (!response.ok || payload.success === false) {
     throw buildApiError(
-      payload.error || 'Не удалось выполнить запрос к Google Sheets.',
+      payload.error || 'Не удалось выполнить запрос к backend API.',
       response.status,
     );
   }
@@ -203,27 +196,11 @@ async function request(path = '', options = {}) {
 }
 
 /**
- * Отправляет POST-действие в API с единым контрактом payload.
- * @param {'create'|'update'|'delete'} action Имя действия API.
- * @param {Object} [payload={}] Данные действия.
- * @returns {Promise<any>} Ответ API.
- */
-function post(action, payload = {}) {
-  return request('', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain;charset=utf-8',
-    },
-    body: JSON.stringify({ action, ...payload }),
-  });
-}
-
-/**
- * Загружает список активностей из Google Sheets API.
+ * Загружает список активностей из backend API.
  * @returns {Promise<Activity[]>} Нормализованный массив активностей.
  */
 export async function fetchActivitiesFromApi() {
-  const payload = await request('?action=list');
+  const payload = await request('/activities');
   return Array.isArray(payload.items)
     ? payload.items.map(normalizeActivity)
     : [];
@@ -235,7 +212,14 @@ export async function fetchActivitiesFromApi() {
  * @returns {Promise<Activity>} Созданная и нормализованная активность.
  */
 export async function createActivityInApi(activity) {
-  const payload = await post('create', { activity });
+  const payload = await request('/activities', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ activity }),
+  });
+
   return normalizeActivity(payload.item ?? activity);
 }
 
@@ -245,7 +229,14 @@ export async function createActivityInApi(activity) {
  * @returns {Promise<Activity>} Обновленная и нормализованная активность.
  */
 export async function updateActivityInApi(activity) {
-  const payload = await post('update', { activity });
+  const payload = await request(`/activities/${encodeURIComponent(String(activity.id))}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ activity }),
+  });
+
   return normalizeActivity(payload.item ?? activity);
 }
 
@@ -255,5 +246,7 @@ export async function updateActivityInApi(activity) {
  * @returns {Promise<any>} Ответ API по операции удаления.
  */
 export async function deleteActivityInApi(id) {
-  return post('delete', { id: String(id) });
+  return request(`/activities/${encodeURIComponent(String(id))}`, {
+    method: 'DELETE',
+  });
 }

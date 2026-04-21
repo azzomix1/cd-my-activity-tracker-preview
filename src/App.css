@@ -34,6 +34,75 @@
   margin-inline: 0;
 }
 
+.view-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  min-height: 48px;
+  padding: 5px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(23, 27, 56, 0.56);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.view-nav__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 22px;
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  background: linear-gradient(140deg, rgba(46, 52, 98, 0.7), rgba(31, 36, 72, 0.62));
+  border-color: rgba(179, 191, 255, 0.36);
+  color: #e2e8ff;
+  box-shadow: 0 8px 18px rgba(7, 9, 27, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: all 0.2s ease;
+}
+
+.view-nav__btn:hover {
+  background: linear-gradient(140deg, rgba(60, 68, 128, 0.78), rgba(40, 47, 94, 0.7));
+  color: #f4f7ff;
+}
+
+.view-nav__btn--active {
+  background: linear-gradient(140deg, rgba(90, 104, 184, 0.76), rgba(68, 76, 140, 0.68));
+  border-color: rgba(192, 205, 255, 0.52);
+  color: #f7f9ff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 18px rgba(126, 160, 255, 0.28);
+}
+
+body[data-theme='midnight'] .view-nav {
+  background: rgba(232, 242, 255, 0.78);
+  border-color: rgba(167, 195, 227, 0.5);
+}
+
+body[data-theme='midnight'] .view-nav__btn {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.9), rgba(239, 248, 255, 0.86));
+  border-color: rgba(163, 192, 226, 0.46);
+  color: #28466f;
+  box-shadow: 0 8px 18px rgba(58, 90, 133, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+body[data-theme='midnight'] .view-nav__btn:hover {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(244, 251, 255, 0.92));
+  color: #23416f;
+}
+
+body[data-theme='midnight'] .view-nav__btn--active {
+  background: linear-gradient(140deg, rgba(167, 205, 255, 0.46), rgba(138, 183, 243, 0.4));
+  border-color: rgba(104, 153, 214, 0.54);
+  color: #225aa2;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55), 0 0 16px rgba(112, 170, 236, 0.28);
+}
+
 .calendar-toolbar {
   grid-column: 1 / -1;
   display: grid;
@@ -784,7 +853,7 @@
 }
 
 .day__top {
-  align-items: flex-start;
+  align-items: center;
 }
 
 .day__number {
@@ -800,6 +869,7 @@
   min-height: 26px;
   min-width: 26px;
   padding: 0 8px;
+  line-height: 1;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(167, 190, 224, 0.28);
@@ -1327,19 +1397,8 @@
   }
 
   .calendar-toolbar {
-    grid-template-columns: 1fr;
     padding: 14px;
     border-radius: 18px;
-  }
-
-  .calendar-toolbar__search,
-  .calendar-toolbar__filters,
-  .calendar-toolbar__meta {
-    grid-column: auto;
-  }
-
-  .calendar-toolbar__filters {
-    grid-template-columns: 1fr;
   }
 
   .calendar-toolbar__meta {
@@ -1476,15 +1535,39 @@
     padding: 10px;
   }
 
+  .day__top {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    width: 100%;
+    justify-content: initial;
+    gap: 0;
+  }
+
   .day__number {
+    grid-column: 2;
+    justify-self: center;
     font-size: 18px;
   }
 
   .day__badge {
+    grid-column: 3;
+    justify-self: end;
     min-height: 22px;
     min-width: 22px;
     padding: 0 7px;
     font-size: 9px;
+  }
+
+  .day__bottom {
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .day-indicators {
+    justify-content: center;
+    width: 100%;
   }
 
   .weekday {
@@ -1654,20 +1737,6 @@
 
 /* Планшеты малые (481px - 768px) */
 @media (min-width: 481px) and (max-width: 768px) {
-  .calendar-toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .calendar-toolbar__search,
-  .calendar-toolbar__filters,
-  .calendar-toolbar__meta {
-    grid-column: auto;
-  }
-
-  .calendar-toolbar__filters {
-    grid-template-columns: 1fr;
-  }
-
   .calendar-toolbar__meta {
     flex-direction: column;
     align-items: stretch;
@@ -1730,11 +1799,6 @@
     gap: 8px;
   }
 
-  .day {
-    padding: 11px;
-    border-radius: 20px;
-  }
-
   .activities-day-card__metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1780,6 +1844,7 @@
   .day {
     font-size: 13px;
     width: auto;
+    padding: 11px;
     border-radius: 50%;
     aspect-ratio: 1 / 1;
     min-height: 0;
@@ -2501,9 +2566,9 @@ body[data-theme='aurora'] .activities-section {
 }
 
 body[data-theme='aurora'] .calendar-toolbar {
-  background: rgba(24, 29, 62, 0.52);
-  border-color: rgba(186, 198, 255, 0.28);
-  box-shadow: 0 16px 34px rgba(6, 8, 27, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  background: linear-gradient(155deg, rgba(23, 28, 60, 0.76), rgba(16, 20, 43, 0.7));
+  border-color: rgba(186, 198, 255, 0.24);
+  box-shadow: 0 18px 38px rgba(5, 8, 27, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 body[data-theme='aurora'] .calendar-toolbar__search input,
@@ -2515,8 +2580,8 @@ body[data-theme='aurora'] .day.has-events,
 body[data-theme='aurora'] .week-day-card,
 body[data-theme='aurora'] .agenda-item,
 body[data-theme='aurora'] .activities-day-card {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(193, 205, 255, 0.24);
+  background: linear-gradient(145deg, rgba(53, 62, 120, 0.3), rgba(28, 34, 71, 0.34));
+  border-color: rgba(193, 205, 255, 0.22);
 }
 
 body[data-theme='aurora'] .calendar-toolbar__search input,
@@ -2531,7 +2596,7 @@ body[data-theme='aurora'] .activities-day-card__metric-value,
 body[data-theme='aurora'] .activities-day-card__headline,
 body[data-theme='aurora'] .agenda-item__title,
 body[data-theme='aurora'] .calendar-view-switch__btn--active {
-  color: #eef2ff;
+  color: #f2f6ff;
 }
 
 body[data-theme='aurora'] .calendar-toolbar__search-icon,
@@ -2548,7 +2613,98 @@ body[data-theme='aurora'] .agenda-item__time,
 body[data-theme='aurora'] .activities-day-card__eyebrow,
 body[data-theme='aurora'] .activities-day-card__lead,
 body[data-theme='aurora'] .calendar-view-switch__btn {
-  color: #c4cae6;
+  color: #c9d1ef;
+}
+
+body[data-theme='aurora'] .calendar-toolbar__search input,
+body[data-theme='aurora'] .calendar-toolbar__filters select {
+  background: linear-gradient(145deg, rgba(43, 50, 98, 0.82), rgba(29, 35, 70, 0.76));
+  border-color: rgba(181, 194, 255, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 18px rgba(6, 8, 26, 0.16);
+}
+
+body[data-theme='aurora'] .calendar-toolbar__search input:focus,
+body[data-theme='aurora'] .calendar-toolbar__filters select:focus {
+  border-color: rgba(122, 198, 255, 0.58);
+  box-shadow: 0 0 0 3px rgba(88, 176, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+body[data-theme='aurora'] .calendar-toolbar__badge {
+  background: linear-gradient(145deg, rgba(53, 61, 114, 0.64), rgba(33, 40, 81, 0.56));
+  border-color: rgba(181, 194, 255, 0.24);
+  color: #dbe4ff;
+}
+
+body[data-theme='aurora'] .calendar-toolbar__reset {
+  background: linear-gradient(145deg, rgba(69, 123, 204, 0.42), rgba(48, 96, 173, 0.36));
+  border-color: rgba(123, 185, 255, 0.34);
+  color: #e7f3ff;
+}
+
+body[data-theme='aurora'] .calendar-toolbar__reset:hover {
+  background: linear-gradient(145deg, rgba(81, 142, 228, 0.5), rgba(58, 111, 194, 0.42));
+  border-color: rgba(139, 199, 255, 0.4);
+}
+
+body[data-theme='aurora'] .calendar-view-switch {
+  background: linear-gradient(145deg, rgba(45, 52, 100, 0.66), rgba(28, 34, 68, 0.58));
+  border-color: rgba(179, 191, 255, 0.22);
+}
+
+body[data-theme='aurora'] .week-day-card {
+  background: linear-gradient(150deg, rgba(49, 58, 111, 0.56), rgba(27, 33, 67, 0.48));
+  border-color: rgba(178, 191, 255, 0.24);
+  box-shadow: 0 14px 28px rgba(5, 8, 27, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+body[data-theme='aurora'] .week-day-card__state {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(186, 198, 255, 0.22);
+  color: #d8e5ff;
+}
+
+body[data-theme='aurora'] .week-day-card__date,
+body[data-theme='aurora'] .week-day-card--selected .week-day-card__date,
+body[data-theme='aurora'] .week-day-card--selected .week-day-card__count {
+  color: #f4f7ff;
+}
+
+body[data-theme='aurora'] .week-day-card__preview-item {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.07));
+  border-color: rgba(186, 198, 255, 0.2);
+}
+
+body[data-theme='aurora'] .week-day-card--today {
+  border-color: rgba(118, 194, 255, 0.48);
+  box-shadow: 0 14px 28px rgba(5, 8, 27, 0.24), inset 0 0 0 1px rgba(120, 197, 255, 0.22);
+}
+
+body[data-theme='aurora'] .week-day-card--selected {
+  background: linear-gradient(150deg, rgba(73, 131, 214, 0.48), rgba(44, 82, 153, 0.38));
+  border-color: rgba(129, 193, 255, 0.42);
+  box-shadow: 0 18px 34px rgba(4, 8, 28, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+body[data-theme='aurora'] .agenda-item {
+  background: linear-gradient(148deg, rgba(47, 56, 109, 0.52), rgba(27, 33, 66, 0.44));
+  border-color: rgba(181, 194, 255, 0.22);
+  box-shadow: 0 10px 20px rgba(5, 8, 27, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+body[data-theme='aurora'] .agenda-item--selected {
+  background: linear-gradient(145deg, rgba(77, 139, 226, 0.46), rgba(48, 91, 170, 0.38));
+  border-color: rgba(130, 192, 255, 0.42);
+}
+
+body[data-theme='aurora'] .activities-day-card {
+  background: linear-gradient(148deg, rgba(45, 54, 106, 0.62), rgba(24, 30, 61, 0.52));
+  border-color: rgba(184, 198, 255, 0.24);
+  box-shadow: 0 16px 30px rgba(5, 8, 27, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+body[data-theme='aurora'] .activities-day-card__metric {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.06));
+  border-color: rgba(186, 198, 255, 0.2);
 }
 
 body[data-theme='aurora'] .calendar-view-switch__btn--active {
@@ -2580,21 +2736,38 @@ body[data-theme='aurora'] .loading {
 }
 
 body[data-theme='aurora'] .day {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(193, 205, 255, 0.24);
-  color: #eef2ff;
-  box-shadow: 0 2px 7px rgba(6, 8, 26, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  background: linear-gradient(155deg, rgba(47, 56, 108, 0.42), rgba(24, 29, 59, 0.36));
+  border-color: rgba(177, 193, 255, 0.28);
+  color: #eef4ff;
+  box-shadow: 0 10px 18px rgba(5, 8, 28, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+body[data-theme='aurora'] .day.has-events {
+  background: linear-gradient(155deg, rgba(65, 79, 149, 0.54), rgba(32, 40, 82, 0.44));
+  border-color: rgba(146, 185, 255, 0.38);
 }
 
 body[data-theme='aurora'] .day:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(193, 205, 255, 0.24);
-  color: #eef2ff;
-  box-shadow: 0 2px 7px rgba(6, 8, 26, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  background: linear-gradient(155deg, rgba(56, 67, 126, 0.48), rgba(28, 34, 68, 0.4));
+  border-color: rgba(190, 206, 255, 0.3);
+  color: #f5f8ff;
+  box-shadow: 0 12px 22px rgba(5, 8, 28, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 body[data-theme='aurora'] .day.has-events:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(155deg, rgba(72, 88, 162, 0.58), rgba(37, 46, 92, 0.48));
+}
+
+body[data-theme='aurora'] .day__number {
+  color: #f6f8ff;
+  text-shadow: 0 1px 0 rgba(10, 14, 38, 0.22);
+}
+
+body[data-theme='aurora'] .day__badge {
+  background: linear-gradient(140deg, rgba(215, 236, 255, 0.2), rgba(149, 201, 255, 0.14));
+  border-color: rgba(154, 207, 255, 0.3);
+  color: #dff1ff;
+  box-shadow: 0 6px 14px rgba(6, 9, 30, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 body[data-theme='aurora'] .day.today {
@@ -2609,6 +2782,14 @@ body[data-theme='aurora'] .day.selected {
   border-color: rgba(132, 199, 255, 0.58);
   color: #d6f3ff;
   box-shadow: 0 0 12px rgba(88, 195, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+body[data-theme='aurora'] .day.today .day__badge,
+body[data-theme='aurora'] .day.selected .day__badge,
+body[data-theme='aurora'] .day.today.selected .day__badge {
+  background: linear-gradient(140deg, rgba(218, 242, 255, 0.3), rgba(150, 214, 255, 0.24));
+  border-color: rgba(170, 219, 255, 0.4);
+  color: #f2fbff;
 }
 
 body[data-theme='aurora'] .day.today.selected {
@@ -2875,10 +3056,6 @@ body[data-theme='aurora'] .form-group input::placeholder {
     display: none;
   }
 
-  .day__top {
-    justify-content: flex-start;
-  }
-
   .mobile-calendar-quick-nav {
     display: inline-flex;
   }
@@ -2950,4 +3127,483 @@ body[data-theme='aurora'] .form-group input::placeholder {
   box-shadow: var(--ui-shadow-overlay);
   backdrop-filter: blur(var(--ui-blur-floating));
   -webkit-backdrop-filter: blur(var(--ui-blur-floating));
+}
+
+/* ==============================================
+   Theme Token System
+   ============================================== */
+
+body[data-theme='aurora'] {
+  --theme-header-bg: linear-gradient(135deg, rgba(44, 50, 96, 0.68), rgba(28, 32, 67, 0.58));
+  --theme-header-border: rgba(195, 207, 255, 0.34);
+  --theme-header-shadow: 0 10px 24px rgba(7, 9, 31, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --theme-switch-bg: linear-gradient(140deg, rgba(48, 55, 105, 0.72), rgba(32, 37, 76, 0.66));
+  --theme-switch-hover-bg: linear-gradient(140deg, rgba(60, 68, 128, 0.8), rgba(40, 47, 92, 0.72));
+  --theme-switch-border: rgba(178, 193, 255, 0.42);
+  --theme-switch-text: #eef3ff;
+  --theme-dev-bg: linear-gradient(140deg, rgba(196, 130, 33, 0.34), rgba(145, 89, 16, 0.28));
+  --theme-dev-hover-bg: linear-gradient(140deg, rgba(219, 149, 49, 0.42), rgba(161, 101, 20, 0.34));
+  --theme-dev-border: rgba(255, 204, 112, 0.46);
+  --theme-dev-text: #ffe09a;
+  --theme-dev-hover-text: #ffefc4;
+  --theme-btn-bg: linear-gradient(140deg, rgba(46, 52, 98, 0.58), rgba(31, 36, 70, 0.52));
+  --theme-btn-hover-bg: linear-gradient(140deg, rgba(57, 65, 120, 0.62), rgba(38, 45, 86, 0.58));
+  --theme-btn-border: rgba(173, 186, 255, 0.38);
+  --theme-btn-text: #dce4ff;
+  --theme-btn-hover-text: #eef2ff;
+  --theme-btn-today-bg: linear-gradient(140deg, rgba(37, 121, 227, 0.5), rgba(31, 94, 199, 0.42));
+  --theme-btn-today-border: rgba(120, 190, 255, 0.62);
+  --theme-btn-today-text: #88dcff;
+  --theme-btn-positive-bg: linear-gradient(140deg, rgba(16, 152, 83, 0.52), rgba(12, 118, 67, 0.44));
+  --theme-btn-positive-border: rgba(94, 246, 176, 0.56);
+  --theme-btn-positive-text: #7effc1;
+  --theme-btn-edit-bg: linear-gradient(140deg, rgba(30, 129, 235, 0.5), rgba(27, 101, 202, 0.44));
+  --theme-btn-edit-border: rgba(112, 188, 255, 0.6);
+  --theme-btn-edit-text: #8ed7ff;
+  --theme-btn-danger-bg: linear-gradient(140deg, rgba(195, 70, 108, 0.52), rgba(145, 45, 87, 0.45));
+  --theme-btn-danger-border: rgba(255, 151, 183, 0.56);
+  --theme-btn-danger-text: #ffc4d6;
+  --theme-toolbar-bg: linear-gradient(155deg, rgba(23, 28, 60, 0.76), rgba(16, 20, 43, 0.7));
+  --theme-toolbar-border: rgba(186, 198, 255, 0.24);
+  --theme-toolbar-shadow: 0 18px 38px rgba(5, 8, 27, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --theme-panel-bg: linear-gradient(145deg, rgba(53, 62, 120, 0.3), rgba(28, 34, 71, 0.34));
+  --theme-panel-border: rgba(193, 205, 255, 0.22);
+  --theme-panel-text: #f2f6ff;
+  --theme-panel-muted: #c9d1ef;
+  --theme-input-bg: linear-gradient(145deg, rgba(43, 50, 98, 0.82), rgba(29, 35, 70, 0.76));
+  --theme-input-border: rgba(181, 194, 255, 0.28);
+  --theme-input-focus-border: rgba(122, 198, 255, 0.58);
+  --theme-input-focus-shadow: 0 0 0 3px rgba(88, 176, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --theme-badge-bg: linear-gradient(145deg, rgba(53, 61, 114, 0.64), rgba(33, 40, 81, 0.56));
+  --theme-badge-border: rgba(181, 194, 255, 0.24);
+  --theme-badge-text: #dbe4ff;
+  --theme-reset-bg: linear-gradient(145deg, rgba(69, 123, 204, 0.42), rgba(48, 96, 173, 0.36));
+  --theme-reset-hover-bg: linear-gradient(145deg, rgba(81, 142, 228, 0.5), rgba(58, 111, 194, 0.42));
+  --theme-reset-border: rgba(123, 185, 255, 0.34);
+  --theme-reset-hover-border: rgba(139, 199, 255, 0.4);
+  --theme-reset-text: #e7f3ff;
+  --theme-view-switch-bg: linear-gradient(145deg, rgba(45, 52, 100, 0.66), rgba(28, 34, 68, 0.58));
+  --theme-view-switch-border: rgba(179, 191, 255, 0.22);
+  --theme-view-switch-active-bg: linear-gradient(140deg, rgba(79, 136, 212, 0.64), rgba(63, 111, 184, 0.54));
+  --theme-day-bg: rgba(255, 255, 255, 0.14);
+  --theme-day-border: rgba(193, 205, 255, 0.24);
+  --theme-day-text: #eef2ff;
+  --theme-day-hover-bg: rgba(255, 255, 255, 0.24);
+  --theme-day-hover-border: rgba(193, 205, 255, 0.24);
+  --theme-day-hover-shadow: 0 2px 7px rgba(6, 8, 26, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --theme-day-has-events-bg: linear-gradient(145deg, rgba(53, 62, 120, 0.3), rgba(28, 34, 71, 0.34));
+  --theme-day-has-events-hover-bg: linear-gradient(145deg, rgba(63, 72, 134, 0.36), rgba(34, 41, 80, 0.38));
+  --theme-day-number-text: #eef2ff;
+  --theme-day-badge-bg: rgba(255, 255, 255, 0.12);
+  --theme-day-badge-border: rgba(186, 198, 255, 0.22);
+  --theme-day-badge-text: #d8e5ff;
+  --theme-day-today-bg: transparent;
+  --theme-day-today-border: rgba(129, 198, 255, 0.65);
+  --theme-day-today-text: #8ed7ff;
+  --theme-day-today-shadow: inset 0 0 0 1px rgba(129, 198, 255, 0.36);
+  --theme-day-selected-bg: rgba(62, 157, 255, 0.28);
+  --theme-day-selected-border: rgba(129, 198, 255, 0.65);
+  --theme-day-selected-text: #8ed7ff;
+  --theme-day-selected-shadow: 0 0 14px rgba(96, 196, 255, 0.22);
+  --theme-day-today-selected-bg: linear-gradient(140deg, rgba(78, 173, 255, 0.38), rgba(54, 138, 236, 0.3));
+  --theme-day-today-selected-border: rgba(141, 206, 255, 0.74);
+  --theme-day-today-selected-text: #d9f2ff;
+  --theme-day-today-selected-shadow: 0 0 18px rgba(88, 195, 255, 0.28), inset 0 0 0 1px rgba(160, 218, 255, 0.28);
+  --theme-indicator-internal: #62f5b5;
+  --theme-indicator-external: #ff8ba7;
+  --theme-activity-bg: rgba(28, 33, 67, 0.36);
+  --theme-activity-border: rgba(176, 188, 250, 0.22);
+  --theme-activity-shadow: 0 6px 16px rgba(6, 8, 26, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --theme-activity-time-bg: rgba(39, 129, 219, 0.24);
+  --theme-activity-time-border: rgba(132, 198, 255, 0.56);
+  --theme-activity-time-text: #8fd8ff;
+  --theme-activity-project-bg: rgba(204, 133, 26, 0.16);
+  --theme-activity-project-border: rgba(255, 199, 108, 0.44);
+  --theme-activity-project-text: #ffd88b;
+  --theme-modal-bg: rgba(19, 23, 48, 0.78);
+  --theme-modal-border: rgba(190, 201, 255, 0.28);
+  --theme-modal-shadow: 0 20px 60px rgba(4, 6, 22, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --theme-form-bg: rgba(32, 38, 74, 0.54);
+  --theme-form-border: rgba(177, 189, 255, 0.3);
+  --theme-form-text: #f3f5ff;
+  --theme-form-placeholder: #a7afd4;
+  --theme-report-summary-bg: rgba(30, 35, 70, 0.68);
+  --theme-report-summary-border: rgba(181, 194, 255, 0.26);
+  --theme-report-summary-label: #ffc86f;
+  --theme-report-summary-meta: #b8c3e8;
+}
+
+body[data-theme='midnight'] {
+  --theme-header-bg: linear-gradient(135deg, rgba(245, 250, 255, 0.84), rgba(233, 244, 255, 0.78));
+  --theme-header-border: rgba(176, 201, 236, 0.45);
+  --theme-header-shadow: 0 8px 18px rgba(56, 88, 129, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --theme-switch-bg: linear-gradient(140deg, rgba(255, 255, 255, 0.9), rgba(238, 248, 255, 0.84));
+  --theme-switch-hover-bg: linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(245, 251, 255, 0.92));
+  --theme-switch-border: rgba(162, 191, 227, 0.46);
+  --theme-switch-text: #2c4b79;
+  --theme-dev-bg: linear-gradient(140deg, rgba(255, 236, 196, 0.84), rgba(255, 223, 158, 0.76));
+  --theme-dev-hover-bg: linear-gradient(140deg, rgba(255, 241, 210, 0.92), rgba(255, 230, 176, 0.84));
+  --theme-dev-border: rgba(214, 164, 72, 0.5);
+  --theme-dev-text: #9d6415;
+  --theme-dev-hover-text: #8b560f;
+  --theme-btn-bg: linear-gradient(140deg, rgba(255, 255, 255, 0.86), rgba(240, 248, 255, 0.8));
+  --theme-btn-hover-bg: linear-gradient(140deg, rgba(255, 255, 255, 0.92), rgba(244, 250, 255, 0.9));
+  --theme-btn-border: rgba(160, 189, 228, 0.48);
+  --theme-btn-text: #28406b;
+  --theme-btn-hover-text: #23416d;
+  --theme-btn-today-bg: linear-gradient(140deg, rgba(102, 180, 255, 0.32), rgba(78, 146, 232, 0.26));
+  --theme-btn-today-border: rgba(92, 155, 225, 0.54);
+  --theme-btn-today-text: #2f6ec8;
+  --theme-btn-positive-bg: linear-gradient(140deg, rgba(171, 238, 203, 0.54), rgba(138, 223, 182, 0.48));
+  --theme-btn-positive-border: rgba(45, 160, 110, 0.58);
+  --theme-btn-positive-text: #176943;
+  --theme-btn-edit-bg: linear-gradient(140deg, rgba(196, 226, 255, 0.56), rgba(168, 208, 246, 0.48));
+  --theme-btn-edit-border: rgba(87, 149, 214, 0.54);
+  --theme-btn-edit-text: #245f9d;
+  --theme-btn-danger-bg: linear-gradient(140deg, rgba(255, 215, 224, 0.56), rgba(255, 191, 207, 0.5));
+  --theme-btn-danger-border: rgba(208, 95, 129, 0.54);
+  --theme-btn-danger-text: #983556;
+  --theme-toolbar-bg: rgba(245, 250, 255, 0.74);
+  --theme-toolbar-border: rgba(173, 198, 231, 0.44);
+  --theme-toolbar-shadow: 0 14px 30px rgba(116, 138, 174, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --theme-panel-bg: rgba(248, 252, 255, 0.86);
+  --theme-panel-border: rgba(171, 197, 233, 0.44);
+  --theme-panel-text: #274168;
+  --theme-panel-muted: #617a9c;
+  --theme-input-bg: rgba(248, 252, 255, 0.86);
+  --theme-input-border: rgba(171, 197, 233, 0.44);
+  --theme-input-focus-border: rgba(92, 155, 225, 0.54);
+  --theme-input-focus-shadow: 0 0 0 3px rgba(92, 155, 225, 0.12);
+  --theme-badge-bg: rgba(248, 252, 255, 0.86);
+  --theme-badge-border: rgba(171, 197, 233, 0.44);
+  --theme-badge-text: #617a9c;
+  --theme-reset-bg: rgba(248, 252, 255, 0.86);
+  --theme-reset-hover-bg: rgba(255, 255, 255, 0.94);
+  --theme-reset-border: rgba(171, 197, 233, 0.44);
+  --theme-reset-hover-border: rgba(171, 197, 233, 0.56);
+  --theme-reset-text: #274168;
+  --theme-view-switch-bg: rgba(248, 252, 255, 0.86);
+  --theme-view-switch-border: rgba(171, 197, 233, 0.44);
+  --theme-view-switch-active-bg: linear-gradient(140deg, rgba(167, 205, 255, 0.46), rgba(138, 183, 243, 0.4));
+  --theme-day-bg: rgba(255, 255, 255, 0.72);
+  --theme-day-border: rgba(177, 201, 233, 0.46);
+  --theme-day-text: #5a7194;
+  --theme-day-hover-bg: rgba(255, 255, 255, 0.72);
+  --theme-day-hover-border: rgba(177, 201, 233, 0.46);
+  --theme-day-hover-shadow: 0 2px 7px rgba(64, 95, 137, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  --theme-day-has-events-bg: linear-gradient(145deg, rgba(248, 252, 255, 0.9), rgba(239, 246, 255, 0.82));
+  --theme-day-has-events-hover-bg: linear-gradient(145deg, rgba(248, 252, 255, 0.9), rgba(239, 246, 255, 0.82));
+  --theme-day-number-text: #274168;
+  --theme-day-badge-bg: rgba(255, 255, 255, 0.62);
+  --theme-day-badge-border: rgba(167, 190, 224, 0.28);
+  --theme-day-badge-text: #617a9c;
+  --theme-day-today-bg: rgba(255, 255, 255, 0.78);
+  --theme-day-today-border: rgba(82, 151, 218, 0.68);
+  --theme-day-today-text: #215ea7;
+  --theme-day-today-shadow: inset 0 0 0 1px rgba(117, 176, 233, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  --theme-day-selected-bg: linear-gradient(140deg, rgba(188, 228, 255, 0.54), rgba(158, 208, 247, 0.46));
+  --theme-day-selected-border: rgba(82, 151, 218, 0.58);
+  --theme-day-selected-text: #215ea7;
+  --theme-day-selected-shadow: 0 5px 13px rgba(93, 166, 236, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  --theme-day-today-selected-bg: linear-gradient(140deg, rgba(150, 212, 255, 0.68), rgba(113, 188, 244, 0.6));
+  --theme-day-today-selected-border: rgba(63, 137, 209, 0.66);
+  --theme-day-today-selected-text: #194f91;
+  --theme-day-today-selected-shadow: 0 6px 15px rgba(93, 166, 236, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.86);
+  --theme-indicator-internal: #5fe0a9;
+  --theme-indicator-external: #e58f8f;
+  --theme-activity-bg: rgba(244, 249, 255, 0.84);
+  --theme-activity-border: rgba(171, 196, 229, 0.34);
+  --theme-activity-shadow: 0 6px 16px rgba(58, 91, 132, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  --theme-activity-time-bg: rgba(167, 211, 251, 0.42);
+  --theme-activity-time-border: rgba(92, 155, 221, 0.58);
+  --theme-activity-time-text: #276bb6;
+  --theme-activity-project-bg: rgba(255, 223, 165, 0.46);
+  --theme-activity-project-border: rgba(210, 157, 70, 0.56);
+  --theme-activity-project-text: #966416;
+  --theme-modal-bg: rgba(247, 252, 255, 0.94);
+  --theme-modal-border: rgba(170, 197, 230, 0.42);
+  --theme-modal-shadow: 0 20px 60px rgba(44, 75, 117, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  --theme-form-bg: rgba(238, 247, 255, 0.94);
+  --theme-form-border: rgba(163, 191, 224, 0.5);
+  --theme-form-text: #2d4c78;
+  --theme-form-placeholder: #7d91ae;
+  --theme-report-summary-bg: rgba(240, 247, 255, 0.88);
+  --theme-report-summary-border: rgba(171, 197, 233, 0.44);
+  --theme-report-summary-label: #b07b18;
+  --theme-report-summary-meta: #617a9c;
+}
+
+body[data-theme] .header {
+  background: var(--theme-header-bg);
+  border-color: var(--theme-header-border);
+  box-shadow: var(--theme-header-shadow);
+}
+
+body[data-theme] .theme-switch {
+  background: var(--theme-switch-bg);
+  border-color: var(--theme-switch-border);
+  color: var(--theme-switch-text);
+}
+
+body[data-theme] .theme-switch:hover {
+  background: var(--theme-switch-hover-bg);
+  color: var(--theme-switch-text);
+}
+
+body[data-theme] .dev-tool-btn {
+  background: var(--theme-dev-bg);
+  border-color: var(--theme-dev-border);
+  color: var(--theme-dev-text);
+}
+
+body[data-theme] .dev-tool-btn:hover {
+  background: var(--theme-dev-hover-bg);
+  color: var(--theme-dev-hover-text);
+}
+
+body[data-theme] .btn {
+  background: var(--theme-btn-bg);
+  border-color: var(--theme-btn-border);
+  color: var(--theme-btn-text);
+}
+
+body[data-theme] .btn:hover {
+  background: var(--theme-btn-hover-bg);
+  color: var(--theme-btn-hover-text);
+}
+
+body[data-theme] .btn-today {
+  background: var(--theme-btn-today-bg);
+  border-color: var(--theme-btn-today-border);
+  color: var(--theme-btn-today-text);
+}
+
+body[data-theme] .btn-add,
+body[data-theme] .btn-save {
+  background: var(--theme-btn-positive-bg);
+  border-color: var(--theme-btn-positive-border);
+  color: var(--theme-btn-positive-text);
+}
+
+body[data-theme] .btn-edit {
+  background: var(--theme-btn-edit-bg);
+  border-color: var(--theme-btn-edit-border);
+  color: var(--theme-btn-edit-text);
+}
+
+body[data-theme] .btn-delete,
+body[data-theme] .btn-cancel {
+  background: var(--theme-btn-danger-bg);
+  border-color: var(--theme-btn-danger-border);
+  color: var(--theme-btn-danger-text);
+}
+
+body[data-theme] .calendar-toolbar {
+  background: var(--theme-toolbar-bg);
+  border-color: var(--theme-toolbar-border);
+  box-shadow: var(--theme-toolbar-shadow);
+}
+
+body[data-theme] .calendar-toolbar__search input,
+body[data-theme] .calendar-toolbar__filters select {
+  background: var(--theme-input-bg);
+  border-color: var(--theme-input-border);
+  color: var(--theme-panel-text);
+}
+
+body[data-theme] .calendar-toolbar__search input:focus,
+body[data-theme] .calendar-toolbar__filters select:focus {
+  border-color: var(--theme-input-focus-border);
+  box-shadow: var(--theme-input-focus-shadow);
+}
+
+body[data-theme] .calendar-toolbar__badge {
+  background: var(--theme-badge-bg);
+  border-color: var(--theme-badge-border);
+  color: var(--theme-badge-text);
+}
+
+body[data-theme] .calendar-toolbar__reset {
+  background: var(--theme-reset-bg);
+  border-color: var(--theme-reset-border);
+  color: var(--theme-reset-text);
+}
+
+body[data-theme] .calendar-toolbar__reset:hover {
+  background: var(--theme-reset-hover-bg);
+  border-color: var(--theme-reset-hover-border);
+}
+
+body[data-theme] .calendar-view-switch {
+  background: var(--theme-view-switch-bg);
+  border-color: var(--theme-view-switch-border);
+}
+
+body[data-theme] .calendar-view-switch__btn--active {
+  background: var(--theme-view-switch-active-bg);
+}
+
+body[data-theme] .calendar-toolbar__search-icon,
+body[data-theme] .calendar-toolbar__summary,
+body[data-theme] .week-day-card__weekday,
+body[data-theme] .week-day-card__count,
+body[data-theme] .week-day-card__preview-item,
+body[data-theme] .week-day-card__preview-empty,
+body[data-theme] .agenda-item__date,
+body[data-theme] .agenda-item__time,
+body[data-theme] .activities-day-card__eyebrow,
+body[data-theme] .activities-day-card__lead,
+body[data-theme] .calendar-view-switch__btn,
+body[data-theme] .day__badge,
+body[data-theme] .weekday,
+body[data-theme] .selected-date,
+body[data-theme] .no-activities,
+body[data-theme] .loading {
+  color: var(--theme-panel-muted);
+}
+
+body[data-theme] .calendar-toolbar__summary strong,
+body[data-theme] .week-day-card,
+body[data-theme] .agenda-item,
+body[data-theme] .activities-day-card,
+body[data-theme] .activities-day-card__metric-value,
+body[data-theme] .activities-day-card__headline,
+body[data-theme] .agenda-item__title,
+body[data-theme] .day__number {
+  color: var(--theme-panel-text);
+}
+
+body[data-theme] .calendar-toolbar__badge,
+body[data-theme] .calendar-view-switch,
+body[data-theme] .week-day-card,
+body[data-theme] .agenda-item,
+body[data-theme] .activities-day-card,
+body[data-theme] .activities-day-card__metric,
+body[data-theme] .week-day-card__preview-item,
+body[data-theme] .week-day-card__state {
+  background: var(--theme-panel-bg);
+  border-color: var(--theme-panel-border);
+}
+
+body[data-theme] .day {
+  background: var(--theme-day-bg);
+  border-color: var(--theme-day-border);
+  color: var(--theme-day-text);
+}
+
+body[data-theme] .day.has-events {
+  background: var(--theme-day-has-events-bg);
+}
+
+body[data-theme] .day:hover {
+  background: var(--theme-day-hover-bg);
+  border-color: var(--theme-day-hover-border);
+  box-shadow: var(--theme-day-hover-shadow);
+}
+
+body[data-theme] .day.has-events:hover {
+  background: var(--theme-day-has-events-hover-bg);
+}
+
+body[data-theme] .day__number {
+  color: var(--theme-day-number-text);
+}
+
+body[data-theme] .day__badge {
+  background: var(--theme-day-badge-bg);
+  border-color: var(--theme-day-badge-border);
+  color: var(--theme-day-badge-text);
+}
+
+body[data-theme] .day.today {
+  background: var(--theme-day-today-bg);
+  border-color: var(--theme-day-today-border);
+  color: var(--theme-day-today-text);
+  box-shadow: var(--theme-day-today-shadow);
+}
+
+body[data-theme] .day.selected {
+  background: var(--theme-day-selected-bg);
+  border-color: var(--theme-day-selected-border);
+  color: var(--theme-day-selected-text);
+  box-shadow: var(--theme-day-selected-shadow);
+}
+
+body[data-theme] .day.today.selected {
+  background: var(--theme-day-today-selected-bg);
+  border-color: var(--theme-day-today-selected-border);
+  color: var(--theme-day-today-selected-text);
+  box-shadow: var(--theme-day-today-selected-shadow);
+}
+
+body[data-theme] .day.today .day__badge,
+body[data-theme] .day.selected .day__badge,
+body[data-theme] .day.today.selected .day__badge {
+  color: var(--theme-day-badge-text);
+}
+
+body[data-theme] .day-indicator--internal {
+  background: var(--theme-indicator-internal);
+}
+
+body[data-theme] .day-indicator--external {
+  background: var(--theme-indicator-external);
+}
+
+body[data-theme] .activity-item {
+  background: var(--theme-activity-bg);
+  border-color: var(--theme-activity-border);
+  box-shadow: var(--theme-activity-shadow);
+}
+
+body[data-theme] .activity-time {
+  background: var(--theme-activity-time-bg);
+  border-color: var(--theme-activity-time-border);
+  color: var(--theme-activity-time-text);
+}
+
+body[data-theme] .activity-project {
+  background: var(--theme-activity-project-bg);
+  border-color: var(--theme-activity-project-border);
+  color: var(--theme-activity-project-text);
+}
+
+body[data-theme] .modal {
+  background: var(--theme-modal-bg);
+  border-color: var(--theme-modal-border);
+  box-shadow: var(--theme-modal-shadow);
+}
+
+body[data-theme] .modal h3,
+body[data-theme] .form-group label,
+body[data-theme] .report-modal__summary-value,
+body[data-theme] .form-group input,
+body[data-theme] .form-group select,
+body[data-theme] .form-group textarea {
+  color: var(--theme-form-text);
+}
+
+body[data-theme] .form-group input,
+body[data-theme] .form-group select,
+body[data-theme] .form-group textarea {
+  background: var(--theme-form-bg);
+  border-color: var(--theme-form-border);
+}
+
+body[data-theme] .form-group input::placeholder {
+  color: var(--theme-form-placeholder);
+}
+
+body[data-theme] .report-modal__summary {
+  background: var(--theme-report-summary-bg);
+  border-color: var(--theme-report-summary-border);
+}
+
+body[data-theme] .report-modal__summary-label {
+  color: var(--theme-report-summary-label);
+}
+
+body[data-theme] .report-modal__summary-meta,
+body[data-theme] .report-modal__projects-empty {
+  color: var(--theme-report-summary-meta);
 }

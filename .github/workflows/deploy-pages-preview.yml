@@ -39,7 +39,7 @@ jobs:
 
       - name: Build preview project
         env:
-          VITE_SHEETS_API_URL: ${{ vars.VITE_SHEETS_API_URL }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_RELEASE_CHANNEL: preview
         run: npm run build
 

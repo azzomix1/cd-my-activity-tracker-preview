@@ -6,13 +6,20 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "api": "node server/index.js",
+    "api:dev": "node --watch server/index.js",
+    "db:migrate": "node scripts/db-migrate.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "jsdoc": "^4.0.5",
     "lucide-react": "^1.8.0",
+    "pg": "^8.20.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

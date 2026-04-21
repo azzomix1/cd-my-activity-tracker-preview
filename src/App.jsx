@@ -1,35 +1,29 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { ArrowUp, CircleAlert, CloudCheck, FlaskConical, LoaderCircle, Search } from 'lucide-react';
+import { Suspense, lazy, useState, useMemo, useEffect, useRef } from 'react';
+import { ArrowUp, CircleAlert, CloudCheck, LoaderCircle, Search } from 'lucide-react';
 import Calendar from './components/Calendar';
 import ActivitiesPanel from './components/ActivitiesPanel';
-import ActivityModal from './components/ActivityModal';
-import PersonalCabinet from './components/PersonalCabinet';
-import ReportModal from './components/ReportModal';
-import { isPublicActivity } from './auth/accessPolicy';
-import { MONTHS, formatDate, parseDate } from './utils/dateUtils';
 import { useActivities } from './hooks/useActivities';
+import { useActivityReports } from './hooks/useActivityReports';
+import { CALENDAR_VIEW_MODES, usePublicCalendar } from './hooks/usePublicCalendar';
 import './App.css';
 
+const ActivityModal = lazy(() => import('./components/ActivityModal'));
+const PersonalCabinet = lazy(() => import('./components/PersonalCabinet'));
+const ReportModal = lazy(() => import('./components/ReportModal'));
+
 const THEMES = {
-  AURORA: 'aurora',
-  MIDNIGHT: 'midnight',
+  DARK: 'aurora',
+  LIGHT: 'midnight',
 };
 
 const LEGACY_THEME_ALIASES = {
-  light: THEMES.MIDNIGHT,
-  dark: THEMES.AURORA,
+  light: THEMES.LIGHT,
+  dark: THEMES.DARK,
 };
 
 const REPORTS_STORAGE_KEY = 'activity-tracker-reports';
 const REPORT_DRAFTS_STORAGE_KEY = 'activity-tracker-report-drafts';
-const LOCAL_TEST_ACTIVITIES_STORAGE_KEY = 'activity-tracker-local-test-activities';
-const LOCAL_REPORT_TEST_ACTIVITY_ID = 'local-report-test-activity';
 const PUBLIC_CALENDAR_SETTINGS_STORAGE_KEY = 'activity-tracker-public-calendar-settings';
-const CALENDAR_VIEW_MODES = {
-  MONTH: 'month',
-  WEEK: 'week',
-  LIST: 'list',
-};
 
 function readStoredPublicCalendarSettings() {
   try {
@@ -57,122 +51,6 @@ function readStoredPublicCalendarSettings() {
   } catch {
     return null;
   }
-}
-
-function sortActivitiesByTime(activities) {
-  return [...activities].sort((left, right) => {
-    const timeComparison = (left.time || '').localeCompare(right.time || '');
-
-    if (timeComparison !== 0) {
-      return timeComparison;
-    }
-
-    return (left.person || left.name || '').localeCompare(right.person || right.name || '');
-  });
-}
-
-function isSameDay(left, right) {
-  return left && right
-    && left.getFullYear() === right.getFullYear()
-    && left.getMonth() === right.getMonth()
-    && left.getDate() === right.getDate();
-}
-
-function getActivitiesForExactDate(activities, date) {
-  if (!date) {
-    return [];
-  }
-
-  const dateKey = formatDate(date);
-
-  return sortActivitiesByTime(
-    activities.filter((activity) => activity.date === dateKey),
-  );
-}
-
-function buildMonthActivitiesMap(activities, year, month) {
-  const result = {};
-
-  activities.forEach((activity) => {
-    const activityDate = parseDate(activity.date);
-
-    if (!activityDate) {
-      return;
-    }
-
-    if (activityDate.getFullYear() !== year || activityDate.getMonth() !== month) {
-      return;
-    }
-
-    const day = activityDate.getDate();
-
-    if (!result[day]) {
-      result[day] = [];
-    }
-
-    result[day].push(activity);
-  });
-
-  Object.keys(result).forEach((day) => {
-    result[day] = sortActivitiesByTime(result[day]);
-  });
-
-  return result;
-}
-
-function getWeekDates(referenceDate) {
-  if (!referenceDate) {
-    return [];
-  }
-
-  const startOfWeek = new Date(referenceDate);
-  const dayOfWeek = startOfWeek.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-
-  startOfWeek.setDate(startOfWeek.getDate() + mondayOffset);
-
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(startOfWeek);
-    date.setDate(startOfWeek.getDate() + index);
-    return date;
-  });
-}
-
-function getWeekPeriodLabel(weekDates) {
-  if (!weekDates.length) {
-    return '';
-  }
-
-  const firstDate = weekDates[0];
-  const lastDate = weekDates[weekDates.length - 1];
-
-  if (firstDate.getMonth() === lastDate.getMonth() && firstDate.getFullYear() === lastDate.getFullYear()) {
-    return `${firstDate.getDate()}-${lastDate.getDate()} ${MONTHS[firstDate.getMonth()]} ${firstDate.getFullYear()}`;
-  }
-
-  if (firstDate.getFullYear() === lastDate.getFullYear()) {
-    return `${firstDate.getDate()} ${MONTHS[firstDate.getMonth()]} - ${lastDate.getDate()} ${MONTHS[lastDate.getMonth()]} ${firstDate.getFullYear()}`;
-  }
-
-  return `${firstDate.getDate()} ${MONTHS[firstDate.getMonth()]} ${firstDate.getFullYear()} - ${lastDate.getDate()} ${MONTHS[lastDate.getMonth()]} ${lastDate.getFullYear()}`;
-}
-
-function getDefaultReferenceDate(year, month) {
-  const now = new Date();
-
-  if (now.getFullYear() === year && now.getMonth() === month) {
-    return now;
-  }
-
-  return new Date(year, month, 1);
-}
-
-function getUniqueNonEmptyValues(activities, field) {
-  const values = activities
-    .map((activity) => activity[field])
-    .filter((value) => value && value.trim());
-
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
 function readStoredReports() {
@@ -205,21 +83,6 @@ function readStoredReportDrafts() {
   }
 }
 
-function readStoredLocalTestActivities() {
-  try {
-    const rawValue = window.localStorage.getItem(LOCAL_TEST_ACTIVITIES_STORAGE_KEY);
-
-    if (!rawValue) {
-      return [];
-    }
-
-    const parsed = JSON.parse(rawValue);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 /**
  * Корневой компонент интерфейса трекера активностей.
  * Отвечает за состояние выбранной даты, открытие модального окна
@@ -237,11 +100,11 @@ function App() {
   const [theme, setTheme] = useState(() => {
     const savedTheme = window.localStorage.getItem('activity-tracker-theme');
 
-    if (savedTheme === THEMES.AURORA || savedTheme === THEMES.MIDNIGHT) {
+    if (savedTheme === THEMES.DARK || savedTheme === THEMES.LIGHT) {
       return savedTheme;
     }
 
-    return LEGACY_THEME_ALIASES[savedTheme] || THEMES.AURORA;
+    return LEGACY_THEME_ALIASES[savedTheme] || THEMES.DARK;
   });
 
   // Состояние календаря
@@ -271,12 +134,9 @@ function App() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportActivity, setReportActivity] = useState(null);
   const [reportModalInstanceKey, setReportModalInstanceKey] = useState(0);
-  const [isReportSaving, setIsReportSaving] = useState(false);
   const [isStatusExpanded, setIsStatusExpanded] = useState(false);
-  const [reportsByActivityId, setReportsByActivityId] = useState(() => readStoredReports());
-  const [reportDraftsByActivityId, setReportDraftsByActivityId] = useState(() => readStoredReportDrafts());
-  const [localTestActivities, setLocalTestActivities] = useState(() => readStoredLocalTestActivities());
   const statusRef = useRef(null);
+  const hasMigratedLegacyReportsRef = useRef(false);
 
   // Эффект параллакса для фона
   useEffect(() => {
@@ -338,18 +198,6 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    window.localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(reportsByActivityId));
-  }, [reportsByActivityId]);
-
-  useEffect(() => {
-    window.localStorage.setItem(REPORT_DRAFTS_STORAGE_KEY, JSON.stringify(reportDraftsByActivityId));
-  }, [reportDraftsByActivityId]);
-
-  useEffect(() => {
-    window.localStorage.setItem(LOCAL_TEST_ACTIVITIES_STORAGE_KEY, JSON.stringify(localTestActivities));
-  }, [localTestActivities]);
-
-  useEffect(() => {
     window.localStorage.setItem(
       PUBLIC_CALENDAR_SETTINGS_STORAGE_KEY,
       JSON.stringify({
@@ -374,22 +222,20 @@ function App() {
     getUniqueValues
   } = useActivities();
 
-  const combinedActivities = useMemo(() => {
-    const activitiesMap = new Map();
-
-    activities.forEach((activity) => {
-      activitiesMap.set(activity.id, activity);
-    });
-
-    localTestActivities.forEach((activity) => {
-      activitiesMap.set(activity.id, activity);
-    });
-
-    return Array.from(activitiesMap.values());
-  }, [activities, localTestActivities]);
+  const {
+    reportsByActivityId,
+    reportDraftsByActivityId,
+    isLoading: isReportsLoading,
+    isSaving: isReportSaving,
+    syncError: reportsSyncError,
+    saveReport,
+    upsertDraft,
+    queueDraftChange,
+    discardDraft,
+  } = useActivityReports();
 
   const activitiesWithReports = useMemo(
-    () => combinedActivities.map((activity) => {
+    () => activities.map((activity) => {
       const reportData = reportsByActivityId[activity.id] || null;
       const reportDraft = reportDraftsByActivityId[activity.id] || null;
 
@@ -401,8 +247,52 @@ function App() {
         reportFilled: Boolean(reportData),
       };
     }),
-    [combinedActivities, reportDraftsByActivityId, reportsByActivityId],
+    [activities, reportDraftsByActivityId, reportsByActivityId],
   );
+
+  useEffect(() => {
+    if (hasMigratedLegacyReportsRef.current || isReportsLoading || activities.length === 0) {
+      return;
+    }
+
+    hasMigratedLegacyReportsRef.current = true;
+
+    const legacyReports = readStoredReports();
+    const legacyDrafts = readStoredReportDrafts();
+    const validActivityIds = new Set(activities.map((activity) => activity.id));
+
+    const reportEntries = Object.entries(legacyReports).filter(([activityId]) => validActivityIds.has(activityId));
+    const draftEntries = Object.entries(legacyDrafts).filter(([activityId]) => validActivityIds.has(activityId));
+
+    if (reportEntries.length === 0 && draftEntries.length === 0) {
+      window.localStorage.removeItem(REPORTS_STORAGE_KEY);
+      window.localStorage.removeItem(REPORT_DRAFTS_STORAGE_KEY);
+      return;
+    }
+
+    async function migrateLegacyReportState() {
+      try {
+        for (const [activityId, reportData] of reportEntries) {
+          if (!reportsByActivityId[activityId]) {
+            await saveReport(activityId, reportData);
+          }
+        }
+
+        for (const [activityId, draftData] of draftEntries) {
+          if (!reportDraftsByActivityId[activityId] && !reportsByActivityId[activityId]) {
+            await upsertDraft(activityId, draftData);
+          }
+        }
+
+        window.localStorage.removeItem(REPORTS_STORAGE_KEY);
+        window.localStorage.removeItem(REPORT_DRAFTS_STORAGE_KEY);
+      } catch (error) {
+        console.error('Ошибка миграции legacy отчетов из localStorage:', error);
+      }
+    }
+
+    migrateLegacyReportState();
+  }, [activities, isReportsLoading, reportDraftsByActivityId, reportsByActivityId, saveReport, upsertDraft]);
 
   const cabinetPersons = useMemo(() => {
     const values = activitiesWithReports
@@ -419,134 +309,32 @@ function App() {
     objects: getUniqueValues('objects')
   }), [getUniqueValues]);
 
-  const publicActivities = useMemo(
-    () => activities.filter(isPublicActivity),
-    [activities],
-  );
-
-  const publicPersons = useMemo(
-    () => getUniqueNonEmptyValues(publicActivities, 'person'),
-    [publicActivities],
-  );
-
-  const publicObjects = useMemo(
-    () => getUniqueNonEmptyValues(publicActivities, 'objects'),
-    [publicActivities],
-  );
-
-  const normalizedSearchQuery = calendarSearchQuery.trim().toLowerCase();
-
-  const filteredPublicActivities = useMemo(
-    () => publicActivities.filter((activity) => {
-      const matchesQuery = !normalizedSearchQuery || [
-        activity.name,
-        activity.person,
-        activity.objects,
-        activity.time,
-      ]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(normalizedSearchQuery));
-
-      const matchesPerson = calendarPersonFilter === 'all' || activity.person === calendarPersonFilter;
-      const matchesType = calendarTypeFilter === 'all' || (activity.eventType || 'internal') === calendarTypeFilter;
-      const matchesObject = calendarObjectFilter === 'all' || activity.objects === calendarObjectFilter;
-
-      return matchesQuery && matchesPerson && matchesType && matchesObject;
-    }),
-    [publicActivities, normalizedSearchQuery, calendarPersonFilter, calendarTypeFilter, calendarObjectFilter],
-  );
-
-  const selectedDate = useMemo(
-    () => (selectedDay ? new Date(currentYear, currentMonth, selectedDay) : null),
-    [currentYear, currentMonth, selectedDay],
-  );
-
-  const calendarReferenceDate = useMemo(
-    () => selectedDate || getDefaultReferenceDate(currentYear, currentMonth),
-    [selectedDate, currentYear, currentMonth],
-  );
-
-  const panelDate = useMemo(() => {
-    if (selectedDate) {
-      return selectedDate;
-    }
-
-    if (calendarViewMode === CALENDAR_VIEW_MODES.MONTH) {
-      return null;
-    }
-
-    return calendarReferenceDate;
-  }, [selectedDate, calendarViewMode, calendarReferenceDate]);
-
-  const activitiesMap = useMemo(
-    () => buildMonthActivitiesMap(filteredPublicActivities, currentYear, currentMonth),
-    [filteredPublicActivities, currentYear, currentMonth],
-  );
-
-  const selectedDayActivities = useMemo(
-    () => getActivitiesForExactDate(filteredPublicActivities, panelDate),
-    [filteredPublicActivities, panelDate],
-  );
-
-  const weekDates = useMemo(
-    () => getWeekDates(calendarReferenceDate),
-    [calendarReferenceDate],
-  );
-
-  const weekActivities = useMemo(
-    () => weekDates.map((date) => ({
-      date,
-      activities: getActivitiesForExactDate(filteredPublicActivities, date),
-    })),
-    [weekDates, filteredPublicActivities],
-  );
-
-  const listActivities = useMemo(
-    () => sortActivitiesByTime(
-      filteredPublicActivities.filter((activity) => {
-        const activityDate = parseDate(activity.date);
-
-        return activityDate
-          && activityDate.getFullYear() === currentYear
-          && activityDate.getMonth() === currentMonth;
-      }),
-    ),
-    [filteredPublicActivities, currentYear, currentMonth],
-  );
-
-  const activeCalendarFiltersCount = [calendarPersonFilter, calendarTypeFilter, calendarObjectFilter]
-    .filter((value) => value !== 'all').length + (normalizedSearchQuery ? 1 : 0);
-
-  const publicCalendarHasCustomSettings = activeCalendarFiltersCount > 0
-    || calendarViewMode !== CALENDAR_VIEW_MODES.MONTH;
-
-  const selectedDaySummary = useMemo(() => {
-    if (!panelDate) {
-      return null;
-    }
-
-    const internalCount = selectedDayActivities.filter((activity) => (activity.eventType || 'internal') === 'internal').length;
-    const externalCount = selectedDayActivities.length - internalCount;
-    const peopleCount = new Set(selectedDayActivities.map((activity) => activity.person).filter(Boolean)).size;
-    const objectCount = new Set(selectedDayActivities.map((activity) => activity.objects).filter(Boolean)).size;
-
-    return {
-      total: selectedDayActivities.length,
-      internalCount,
-      externalCount,
-      peopleCount,
-      objectCount,
-      nextActivity: selectedDayActivities[0] || null,
-    };
-  }, [panelDate, selectedDayActivities]);
-
-  const calendarPeriodLabel = useMemo(() => {
-    if (calendarViewMode === CALENDAR_VIEW_MODES.WEEK) {
-      return getWeekPeriodLabel(weekDates);
-    }
-
-    return `${MONTHS[currentMonth]} ${currentYear}`;
-  }, [calendarViewMode, weekDates, currentMonth, currentYear]);
+  const {
+    publicPersons,
+    publicObjects,
+    filteredPublicActivities,
+    selectedDate,
+    calendarReferenceDate,
+    panelDate,
+    activitiesMap,
+    selectedDayActivities,
+    weekActivities,
+    listActivities,
+    activeCalendarFiltersCount,
+    publicCalendarHasCustomSettings,
+    selectedDaySummary,
+    calendarPeriodLabel,
+  } = usePublicCalendar({
+    activities,
+    currentYear,
+    currentMonth,
+    selectedDay,
+    calendarViewMode,
+    calendarSearchQuery,
+    calendarPersonFilter,
+    calendarTypeFilter,
+    calendarObjectFilter,
+  });
 
   // Обработчики навигации
   /**
@@ -659,41 +447,15 @@ function App() {
       return;
     }
 
-    setReportDraftsByActivityId((prev) => {
-      if (!draftData) {
-        if (!(activityId in prev)) {
-          return prev;
-        }
-
-        const nextDrafts = { ...prev };
-        delete nextDrafts[activityId];
-        return nextDrafts;
-      }
-
-      return {
-        ...prev,
-        [activityId]: {
-          ...draftData,
-          updatedAt: new Date().toISOString(),
-        },
-      };
-    });
+    queueDraftChange(activityId, draftData);
   };
 
-  const handleReportDraftDiscard = (activityId) => {
+  const handleReportDraftDiscard = async (activityId) => {
     if (!activityId) {
       return;
     }
 
-    setReportDraftsByActivityId((prev) => {
-      if (!(activityId in prev)) {
-        return prev;
-      }
-
-      const nextDrafts = { ...prev };
-      delete nextDrafts[activityId];
-      return nextDrafts;
-    });
+    await discardDraft(activityId);
   };
 
   /**
@@ -728,26 +490,6 @@ function App() {
         window.alert(result.error || 'Не удалось удалить активность.');
         return;
       }
-
-      setReportsByActivityId((prev) => {
-        if (!(id in prev)) {
-          return prev;
-        }
-
-        const nextReports = { ...prev };
-        delete nextReports[id];
-        return nextReports;
-      });
-
-      setReportDraftsByActivityId((prev) => {
-        if (!(id in prev)) {
-          return prev;
-        }
-
-        const nextDrafts = { ...prev };
-        delete nextDrafts[id];
-        return nextDrafts;
-      });
     }
   };
 
@@ -756,90 +498,44 @@ function App() {
       return;
     }
 
-    setIsReportSaving(true);
+    const result = await saveReport(reportActivity.id, reportData);
 
-    try {
-      setReportsByActivityId((prev) => ({
-        ...prev,
-        [reportActivity.id]: {
-          ...reportData,
-          updatedAt: new Date().toISOString(),
-        },
-      }));
-      handleReportDraftDiscard(reportActivity.id);
+    if (result.success) {
       handleReportModalClose();
-    } finally {
-      setIsReportSaving(false);
+      return;
     }
+
+    window.alert(result.error || 'Не удалось сохранить отчет.');
   };
 
-  const handleSeedLocalPastReportTest = () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 5);
+  const combinedSyncError = syncError || reportsSyncError;
+  const isSystemLoading = isLoading || isReportsLoading;
 
-    const personName = cabinetPersons[0] || 'Тестовый сотрудник';
-    const testActivity = {
-      id: LOCAL_REPORT_TEST_ACTIVITY_ID,
-      date: formatDate(yesterday),
-      time: '13:00',
-      name: 'Тестовое личное мероприятие',
-      person: personName,
-      objects: 'Тестовый проект / тестовая площадка',
-      eventType: 'internal',
-      visibility: 'private',
-    };
+  const statusText = combinedSyncError
+    ? combinedSyncError
+    : 'Данные синхронизируются с PostgreSQL API.';
 
-    const testReport = {
-      date: testActivity.date,
-      time: testActivity.time,
-      employeeName: personName,
-      meetingContent: 'Проекты Юнити',
-      meetingFormat: 'Презентация',
-      projects: ['Юнити', 'Юнити Family', 'Юнити River'],
-      notificationsCount: '10',
-      telegramSubscriptionsCount: '3',
-      comment: 'Тестовый локальный отчет. Нужен для проверки отображения прошедшего личного мероприятия и наполнения карточки в интерфейсе. Комментарий сделан длиннее обычного, чтобы проверить перенос строк и работу формы с развернутым текстом.',
-      updatedAt: new Date().toISOString(),
-    };
-
-    setLocalTestActivities((prev) => {
-      const nextActivities = prev.filter((activity) => activity.id !== LOCAL_REPORT_TEST_ACTIVITY_ID);
-      return [...nextActivities, testActivity];
-    });
-
-    setReportsByActivityId((prev) => ({
-      ...prev,
-      [LOCAL_REPORT_TEST_ACTIVITY_ID]: testReport,
-    }));
-
-    setView('cabinet');
-  };
-
-  const statusText = syncError
-    ? syncError
-    : 'Данные синхронизируются с Google Sheets.';
-
-  const statusToneClass = isLoading
+  const statusToneClass = isSystemLoading
     ? 'sync-status--loading'
-    : syncError
+    : combinedSyncError
       ? 'sync-status--error'
       : 'sync-status--success';
 
-  const statusTitle = isLoading
-    ? 'Подключение к Google Sheets'
-    : syncError
-      ? 'Google Sheets недоступен'
-      : 'Google Sheets подключен';
+  const statusTitle = isSystemLoading
+    ? 'Подключение к PostgreSQL API'
+    : combinedSyncError
+      ? 'PostgreSQL API недоступен'
+      : 'PostgreSQL API подключен';
 
-  const StatusIcon = isLoading
+  const StatusIcon = isSystemLoading
     ? LoaderCircle
-    : syncError
+    : combinedSyncError
       ? CircleAlert
       : CloudCheck;
 
   const handleThemeToggle = () => {
     setTheme((currentTheme) => (
-      currentTheme === THEMES.AURORA ? THEMES.MIDNIGHT : THEMES.AURORA
+      currentTheme === THEMES.DARK ? THEMES.LIGHT : THEMES.DARK
     ));
   };
 
@@ -871,18 +567,8 @@ function App() {
             onClick={handleThemeToggle}
             title="Переключить цветовой пресет"
           >
-            {theme === THEMES.AURORA ? 'Aurora (темная)' : 'Midnight (светлая)'}
+            {theme === THEMES.DARK ? 'Тёмная тема' : 'Светлая тема'}
           </button>
-          {import.meta.env.DEV && (
-            <button
-              className="theme-switch dev-tool-btn"
-              onClick={handleSeedLocalPastReportTest}
-              title="Создать локальный тест прошедшего мероприятия с отчетом"
-            >
-              <FlaskConical size={14} aria-hidden="true" />
-              Тест отчета
-            </button>
-          )}
           <div
             ref={statusRef}
             className={`sync-status ${statusToneClass} ${isStatusExpanded ? ' sync-status--expanded' : ''}`}
@@ -900,14 +586,14 @@ function App() {
               <StatusIcon
                 size={14}
                 aria-hidden="true"
-                className={`sync-status__icon${isLoading ? ' sync-status__icon--spin' : ''}`}
+                className={`sync-status__icon${isSystemLoading ? ' sync-status__icon--spin' : ''}`}
               />
-              <span className="sync-status__label">Sheets</span>
+              <span className="sync-status__label">API</span>
             </button>
 
             <div className="sync-status__popover" role="status">
               <div className="sync-status__headline">{statusTitle}</div>
-              <div className="sync-status__text">{isLoading ? 'Загрузка активностей...' : statusText}</div>
+              <div className="sync-status__text">{isSystemLoading ? 'Загрузка данных...' : statusText}</div>
             </div>
           </div>
         </div>
@@ -1046,11 +732,19 @@ function App() {
           />
         </>
       ) : (
-        <PersonalCabinet
-          activities={activitiesWithReports}
-          persons={cabinetPersons}
-          onReportClick={handleReportModalOpen}
-        />
+        <Suspense
+          fallback={(
+            <div className="activities-section">
+              <div className="loading">Загрузка кабинета...</div>
+            </div>
+          )}
+        >
+          <PersonalCabinet
+            activities={activitiesWithReports}
+            persons={cabinetPersons}
+            onReportClick={handleReportModalOpen}
+          />
+        </Suspense>
       )}
 
       {view === 'calendar' && (
@@ -1068,28 +762,32 @@ function App() {
         </button>
       )}
 
-      <ActivityModal
-        key={modalInstanceKey}
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onSave={handleSave}
-        activity={editingActivity}
-        selectedDate={selectedDate}
-        suggestions={suggestions}
-        isSubmitting={isSaving}
-      />
+      <Suspense fallback={null}>
+        <ActivityModal
+          key={modalInstanceKey}
+          isOpen={isModalOpen}
+          onClose={handleModalClose}
+          onSave={handleSave}
+          activity={editingActivity}
+          selectedDate={selectedDate}
+          suggestions={suggestions}
+          isSubmitting={isSaving}
+        />
+      </Suspense>
 
-      <ReportModal
-        key={reportModalInstanceKey}
-        isOpen={isReportModalOpen}
-        activity={reportActivity}
-        draftData={reportActivity ? reportDraftsByActivityId[reportActivity.id] || null : null}
-        onClose={handleReportModalClose}
-        onDraftChange={handleReportDraftChange}
-        onDiscardDraft={handleReportDraftDiscard}
-        onSave={handleReportSave}
-        isSubmitting={isReportSaving}
-      />
+      <Suspense fallback={null}>
+        <ReportModal
+          key={reportModalInstanceKey}
+          isOpen={isReportModalOpen}
+          activity={reportActivity}
+          draftData={reportActivity ? reportDraftsByActivityId[reportActivity.id] || null : null}
+          onClose={handleReportModalClose}
+          onDraftChange={handleReportDraftChange}
+          onDiscardDraft={handleReportDraftDiscard}
+          onSave={handleReportSave}
+          isSubmitting={isReportSaving}
+        />
+      </Suspense>
     </div>
   );
 }

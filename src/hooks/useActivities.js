@@ -3,7 +3,7 @@ import {
   createActivityInApi,
   deleteActivityInApi,
   fetchActivitiesFromApi,
-  isSheetsApiConfigured,
+  isActivitiesApiConfigured,
   normalizeActivity,
   updateActivityInApi,
 } from '../services/activitiesApi';
@@ -60,11 +60,11 @@ function sortActivities(activities) {
  * @returns {string} Текст ошибки конфигурации.
  */
 function getApiConfigurationError() {
-  return 'Не задан адрес API для Google Sheets.';
+  return 'Не задан адрес API для источника данных.';
 }
 
 /**
- * Хук управления активностями: загрузка, фильтрация по датам и CRUD через Google Sheets API.
+ * Хук управления активностями: загрузка, фильтрация по датам и CRUD через backend API.
  *
  * @returns {{
  * activities: import('../services/activitiesApi').Activity[],
@@ -91,7 +91,7 @@ export function useActivities() {
     async function loadActivities() {
       setIsLoading(true);
 
-      if (!isSheetsApiConfigured()) {
+      if (!isActivitiesApiConfigured()) {
         if (isMounted) {
           setActivities([]);
           setSyncError(getApiConfigurationError());
@@ -110,14 +110,14 @@ export function useActivities() {
         setActivities(sortActivities(remoteActivities));
         setSyncError('');
       } catch (error) {
-        console.error('Ошибка загрузки из Google Sheets:', error);
+        console.error('Ошибка загрузки активностей:', error);
 
         if (!isMounted) {
           return;
         }
 
         setActivities([]);
-        setSyncError(error.message || 'Не удалось загрузить данные из Google Sheets.');
+        setSyncError(error.message || 'Не удалось загрузить данные из API.');
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -185,7 +185,7 @@ export function useActivities() {
   }, [activities]);
 
   const addActivity = useCallback((activityData) => {
-    if (!isSheetsApiConfigured()) {
+    if (!isActivitiesApiConfigured()) {
       const error = getApiConfigurationError();
       setSyncError(error);
       return Promise.resolve({ success: false, error });
@@ -205,9 +205,9 @@ export function useActivities() {
         return { success: true, id: createdActivity.id };
       })
       .catch((error) => {
-        console.error('Ошибка сохранения в Google Sheets:', error);
-        setSyncError(error.message || 'Не удалось сохранить данные в Google Sheets.');
-        return { success: false, error: error.message || 'Не удалось сохранить данные в Google Sheets.' };
+        console.error('Ошибка сохранения активности:', error);
+        setSyncError(error.message || 'Не удалось сохранить данные в API.');
+        return { success: false, error: error.message || 'Не удалось сохранить данные в API.' };
       })
       .finally(() => {
         setIsSaving(false);
@@ -215,7 +215,7 @@ export function useActivities() {
   }, []);
 
   const updateActivity = useCallback((activityData) => {
-    if (!isSheetsApiConfigured()) {
+    if (!isActivitiesApiConfigured()) {
       const error = getApiConfigurationError();
       setSyncError(error);
       return Promise.resolve({ success: false, error });
@@ -236,9 +236,9 @@ export function useActivities() {
         return { success: true };
       })
       .catch((error) => {
-        console.error('Ошибка обновления в Google Sheets:', error);
-        setSyncError(error.message || 'Не удалось обновить данные в Google Sheets.');
-        return { success: false, error: error.message || 'Не удалось обновить данные в Google Sheets.' };
+        console.error('Ошибка обновления активности:', error);
+        setSyncError(error.message || 'Не удалось обновить данные в API.');
+        return { success: false, error: error.message || 'Не удалось обновить данные в API.' };
       })
       .finally(() => {
         setIsSaving(false);
@@ -246,7 +246,7 @@ export function useActivities() {
   }, []);
 
   const deleteActivity = useCallback((id) => {
-    if (!isSheetsApiConfigured()) {
+    if (!isActivitiesApiConfigured()) {
       const error = getApiConfigurationError();
       setSyncError(error);
       return Promise.resolve({ success: false, error });
@@ -261,9 +261,9 @@ export function useActivities() {
         return { success: true };
       })
       .catch((error) => {
-        console.error('Ошибка удаления из Google Sheets:', error);
-        setSyncError(error.message || 'Не удалось удалить данные из Google Sheets.');
-        return { success: false, error: error.message || 'Не удалось удалить данные из Google Sheets.' };
+        console.error('Ошибка удаления активности:', error);
+        setSyncError(error.message || 'Не удалось удалить данные из API.');
+        return { success: false, error: error.message || 'Не удалось удалить данные из API.' };
       })
       .finally(() => {
         setIsSaving(false);
