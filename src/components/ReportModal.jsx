@@ -190,13 +190,13 @@ function ReportModal({
 
           <div className="form-group">
             <label htmlFor="report-content">Содержание встречи *</label>
-            <input
-              type="text"
+            <textarea
               id="report-content"
               name="meetingContent"
               value={formData.meetingContent}
               onChange={handleChange}
               placeholder="Например, Проекты Юнити"
+              rows={3}
               disabled={isSubmitting}
               required
             />
@@ -204,13 +204,13 @@ function ReportModal({
 
           <div className="form-group">
             <label htmlFor="report-format">Формат встречи *</label>
-            <input
-              type="text"
+            <textarea
               id="report-format"
               name="meetingFormat"
               value={formData.meetingFormat}
               onChange={handleChange}
               placeholder="Например, Презентация"
+              rows={2}
               disabled={isSubmitting}
               required
             />

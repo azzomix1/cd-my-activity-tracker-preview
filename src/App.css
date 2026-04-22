@@ -79,6 +79,121 @@
   cursor: not-allowed;
 }
 
+.modal-error {
+  margin: 8px 0 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(208, 95, 82, 0.36);
+  background: rgba(255, 235, 232, 0.9);
+  color: #8e2e26;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+[data-theme="aurora"] .modal-error {
+  background: rgba(80, 30, 30, 0.55);
+  color: #f4b0aa;
+  border-color: rgba(208, 95, 82, 0.4);
+}
+
+.action-error-banner {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(208, 95, 82, 0.36);
+  background: linear-gradient(145deg, rgba(255, 235, 232, 0.97), rgba(255, 218, 213, 0.92));
+  box-shadow: 0 8px 24px rgba(160, 50, 40, 0.18);
+  color: #8e2e26;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  max-width: 90vw;
+}
+
+.action-error-banner__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #8e2e26;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.action-error-banner__close:hover {
+  opacity: 1;
+}
+
+.delete-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 14, 36, 0.46);
+  backdrop-filter: blur(4px);
+}
+
+.delete-confirm-dialog {
+  padding: 28px 28px 22px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.97), rgba(245, 249, 255, 0.95));
+  border: 1px solid rgba(200, 216, 240, 0.6);
+  box-shadow: 0 20px 50px rgba(10, 14, 36, 0.2);
+  max-width: 380px;
+  width: calc(100vw - 48px);
+}
+
+.delete-confirm-dialog__text {
+  margin: 0 0 20px;
+  font-size: 15px;
+  color: #2a3d5c;
+  line-height: 1.5;
+}
+
+.delete-confirm-dialog__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.delete-confirm-dialog__btn {
+  min-height: 38px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: opacity 0.15s;
+}
+
+.delete-confirm-dialog__btn--cancel {
+  border-color: rgba(170, 190, 226, 0.42);
+  background: rgba(240, 245, 255, 0.9);
+  color: #4a6488;
+}
+
+.delete-confirm-dialog__btn--confirm {
+  border-color: rgba(208, 95, 82, 0.42);
+  background: linear-gradient(145deg, rgba(255, 230, 227, 0.95), rgba(255, 210, 206, 0.88));
+  color: #9d3228;
+}
+
+.delete-confirm-dialog__btn:hover {
+  opacity: 0.85;
+}
+
 .auth-card {
   grid-column: 1 / -1;
   padding: 24px;

@@ -30,12 +30,12 @@ export function useActivityReports({ enabled = false } = {}) {
       setReportDraftsByActivityId({});
       setSyncError('');
       setIsLoading(false);
+      const timerMapEarly = draftTimersRef.current;
       return () => {
-        cloneTimers(draftTimersRef.current).forEach((timerId) => {
+        cloneTimers(timerMapEarly).forEach((timerId) => {
           window.clearTimeout(timerId);
         });
-
-        draftTimersRef.current.clear();
+        timerMapEarly.clear();
       };
     }
 
@@ -67,14 +67,13 @@ export function useActivityReports({ enabled = false } = {}) {
 
     loadReportState();
 
+    const timerMap = draftTimersRef.current;
     return () => {
       isMounted = false;
-
-      cloneTimers(draftTimersRef.current).forEach((timerId) => {
+      cloneTimers(timerMap).forEach((timerId) => {
         window.clearTimeout(timerId);
       });
-
-      draftTimersRef.current.clear();
+      timerMap.clear();
     };
   }, [enabled]);
 

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowUp, BellRing, ChevronDown, CircleAlert, Clock3, FileText, Pencil, X } from 'lucide-react';
 import { getActivityAudienceLabel, isPrivateActivity, isPublicActivity } from '../auth/accessPolicy';
+import AdminHierarchyPanel from './AdminHierarchyPanel';
 import PastEventsPanel from './PastEventsPanel';
 import { MONTHS, WEEKDAYS, getCalendarData, isToday } from '../utils/dateUtils';
 import './PersonalCabinet.css';
@@ -332,12 +333,13 @@ function CabinetEventCard({ activity, onEdit, onDelete, onReportClick, showRepor
  * @param {(id: string) => void} [props.onDelete] Удаление мероприятия.
  * @returns {JSX.Element}
  */
-function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, onEdit, onDelete }) {
+function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReportClick, onAddClick, onEdit, onDelete }) {
   const todayKey = getTodayKey();
   const tomorrowKey = getRelativeDayKey(1);
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const attentionSectionRef = useRef(null);
   const upcomingSectionRef = useRef(null);
+  const hierarchyDropdownRef = useRef(null);
   const currentPerson = String(currentUser?.displayName || currentUser?.email || '').trim();
   const sessionAliases = useMemo(() => buildSessionAliases(currentUser), [currentUser]);
 
@@ -345,9 +347,40 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
   const [isPastOpen, setIsPastOpen]       = useState(false);
   const [isPastMissingOpen, setIsPastMissingOpen] = useState(true);
   const [isPastFilledOpen, setIsPastFilledOpen] = useState(false);
+  const [isHierarchyOpen, setIsHierarchyOpen] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const [prevCurrentPerson, setPrevCurrentPerson] = useState(currentPerson);
+
+  if (prevCurrentPerson !== currentPerson) {
+    setPrevCurrentPerson(currentPerson);
+    setSelectedDateFilter('');
+    setCalendarMonth(today.getMonth());
+    setCalendarYear(today.getFullYear());
+  }
+
+  useEffect(() => {
+    if (!isHierarchyOpen) return undefined;
+
+    function handlePointerDown(event) {
+      if (hierarchyDropdownRef.current && !hierarchyDropdownRef.current.contains(event.target)) {
+        setIsHierarchyOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') setIsHierarchyOpen(false);
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isHierarchyOpen]);
+
   const pastSectionRef = useRef(null);
 
   // --- Фильтрация по сотруднику ---
@@ -465,15 +498,6 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
   }, [activitiesWithMissingFields.length, pastMissingActivities.length, todayActivities.length]);
 
   // --- Вспомогательные выборки для счётчиков ---
-  const privateUpcoming = useMemo(
-    () => upcomingActivities.filter(isPrivateActivity),
-    [upcomingActivities],
-  );
-  const publicUpcoming = useMemo(
-    () => upcomingActivities.filter(isPublicActivity),
-    [upcomingActivities],
-  );
-
   // --- Активный список в зависимости от фильтра ---
   const dateFilteredUpcoming = useMemo(() => {
     if (!selectedDateFilter) {
@@ -519,12 +543,6 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
     return days;
   }, [calendarMonth, calendarYear]);
 
-  useEffect(() => {
-    setSelectedDateFilter('');
-    setCalendarMonth(today.getMonth());
-    setCalendarYear(today.getFullYear());
-  }, [currentPerson, today]);
-
   function getFilterCount(key) {
     if (key === 'private') return filteredPrivateUpcoming.length;
     if (key === 'public')  return filteredPublicUpcoming.length;
@@ -564,16 +582,16 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
     setSelectedDateFilter('');
   }
 
-  function handleFocusDate(date) {
+  const handleFocusDate = useCallback((date) => {
     setSelectedDateFilter(date);
     setFilter('all');
-  }
+  }, [setFilter]);
 
   function handleQuickNavigation() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function handleSectionNavigation(sectionKey) {
+  const handleSectionNavigation = useCallback((sectionKey) => {
     if (sectionKey === 'attention') {
       attentionSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
@@ -588,7 +606,7 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
       pastSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-  }
+  }, []);
 
   const totalAttentionCount = pastMissingActivities.length + reportDraftActivities.length + activitiesWithMissingFields.length;
   const activeFilterLabel = FILTERS.find((item) => item.key === filter)?.label || 'Все';
@@ -646,14 +664,13 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
       priorityLabel: index === 0 ? 'Сейчас главное' : `Приоритет ${index + 1}`,
     }));
   }, [activitiesWithMissingFields, pastMissingActivities, reportDraftActivities, todayActivities, tomorrowActivities, todayKey]);
-  const overviewCards = [
+  const overviewCards = useMemo(() => [
     {
       key: 'upcoming',
       label: 'Впереди',
       value: upcomingActivities.length,
       tone: 'primary',
       description: 'все предстоящие мероприятия',
-      onClick: () => handleSectionNavigation('upcoming'),
     },
     {
       key: 'attention',
@@ -661,7 +678,6 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
       value: totalAttentionCount,
       tone: 'warning',
       description: 'отчеты, черновики и пробелы',
-      onClick: () => handleSectionNavigation('attention'),
     },
     {
       key: 'today',
@@ -669,7 +685,6 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
       value: todayActivities.length + tomorrowActivities.length,
       tone: 'neutral',
       description: 'сегодня и завтра',
-      onClick: () => handleFocusDate(todayActivities[0]?.date || tomorrowActivities[0]?.date || ''),
     },
     {
       key: 'drafts',
@@ -677,9 +692,20 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
       value: reportDraftActivities.length,
       tone: 'danger',
       description: 'незавершенные отчеты',
-      onClick: () => setIsPastOpen(true),
     },
-  ];
+  ], [reportDraftActivities.length, todayActivities, tomorrowActivities, totalAttentionCount, upcomingActivities.length]);
+
+  const handleCardClick = useCallback((key) => {
+    if (key === 'upcoming') {
+      upcomingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (key === 'attention') {
+      attentionSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (key === 'today') {
+      handleFocusDate(todayActivities[0]?.date || tomorrowActivities[0]?.date || '');
+    } else if (key === 'drafts') {
+      setIsPastOpen(true);
+    }
+  }, [handleFocusDate, todayActivities, tomorrowActivities]);
 
   return (
     <div className="cabinet">
@@ -702,9 +728,7 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
               <span>{currentPerson ? currentPerson.charAt(0).toUpperCase() : '?'}</span>
             </div>
             <div className="cabinet__user-meta">
-              <span className="cabinet__stub-label">
-                Авторизованный пользователь
-              </span>
+              <span className="cabinet__user-label">Личный кабинет</span>
               <div className="cabinet__person-select" role="status" aria-label="Текущий сотрудник">
                 {currentPerson || 'Пользователь не определен'}
               </div>
@@ -737,7 +761,7 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
                     key={card.key}
                     type="button"
                     className={`cabinet-summary-card cabinet-summary-card--${card.tone}`}
-                    onClick={card.onClick}
+                    onClick={() => handleCardClick(card.key)}
                     disabled={card.key === 'today' && !todayActivities[0] && !tomorrowActivities[0]}
                   >
                     <span className="cabinet-summary-card__label">{card.label}</span>
@@ -757,6 +781,30 @@ function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, o
                 <button type="button" className="cabinet__hero-nav-btn" onClick={() => handleSectionNavigation('history')}>
                   История
                 </button>
+
+                {canManageHierarchy && (
+                  <div className="cabinet__hierarchy-dropdown" ref={hierarchyDropdownRef}>
+                    <button
+                      type="button"
+                      className={`cabinet__hero-nav-btn cabinet__hero-nav-btn--hierarchy${isHierarchyOpen ? ' cabinet__hero-nav-btn--active' : ''}`}
+                      onClick={() => setIsHierarchyOpen((prev) => !prev)}
+                      aria-expanded={isHierarchyOpen}
+                    >
+                      Иерархия
+                      <ChevronDown
+                        size={12}
+                        aria-hidden="true"
+                        className={`cabinet__hierarchy-chevron${isHierarchyOpen ? ' cabinet__hierarchy-chevron--open' : ''}`}
+                      />
+                    </button>
+
+                    {isHierarchyOpen && (
+                      <div className="cabinet__hierarchy-panel">
+                        <AdminHierarchyPanel />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="cabinet__reminders">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toInputDateFormat, fromInputDateFormat } from '../utils/dateUtils';
 
 /**
@@ -57,26 +57,58 @@ function ActivityModal({
   selectedDate,
   suggestions,
   isSubmitting,
+  submitError,
 }) {
   const [formData, setFormData] = useState(() => createInitialFormData(activity, selectedDate));
+  const [validationError, setValidationError] = useState('');
+  const firstFieldRef = useRef(null);
 
   const isEditMode = !!activity;
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = window.setTimeout(() => {
+      firstFieldRef.current?.focus();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !isSubmitting) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isSubmitting, onClose]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setValidationError('');
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) {
+      setValidationError('Название активности не может быть пустым.');
+      firstFieldRef.current?.focus();
+      return;
+    }
+
     const activityData = {
       ...(activity && { id: activity.id }),
       date: fromInputDateFormat(formData.date),
       time: formData.time,
-      name: formData.name,
-      person: formData.person,
-      objects: formData.objects,
+      name: trimmedName,
+      person: formData.person.trim(),
+      objects: formData.objects.trim(),
       eventType: formData.eventType,
       visibility: formData.visibility,
     };
@@ -85,10 +117,12 @@ function ActivityModal({
   };
 
   const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
+    if (e.target === e.currentTarget && !isSubmitting) {
       onClose();
     }
   };
+
+  const displayError = validationError || submitError || '';
 
   if (!isOpen) return null;
 
@@ -101,6 +135,7 @@ function ActivityModal({
           <div className="form-group">
             <label htmlFor="date">Дата *</label>
             <input
+              ref={firstFieldRef}
               type="date"
               id="date"
               name="date"
@@ -210,6 +245,10 @@ function ActivityModal({
               <option value="private">Личное</option>
             </select>
           </div>
+
+          {displayError && (
+            <div className="modal-error" role="alert">{displayError}</div>
+          )}
 
           <div className="modal-buttons">
             <button type="button" className="btn btn-cancel" onClick={onClose} disabled={isSubmitting}>

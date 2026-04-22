@@ -2,7 +2,6 @@ import { Suspense, lazy, useState, useMemo, useEffect, useRef } from 'react';
 import { ArrowUp, CircleAlert, CloudCheck, LoaderCircle, Search } from 'lucide-react';
 import Calendar from './components/Calendar';
 import ActivitiesPanel from './components/ActivitiesPanel';
-import AdminHierarchyPanel from './components/AdminHierarchyPanel';
 import { useActivities } from './hooks/useActivities';
 import { useActivityReports } from './hooks/useActivityReports';
 import { CALENDAR_VIEW_MODES, usePublicCalendar } from './hooks/usePublicCalendar';
@@ -150,6 +149,9 @@ function App() {
   const [loginPassword, setLoginPassword] = useState('');
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [modalSubmitError, setModalSubmitError] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const {
     session,
     sessionStatus,
@@ -441,6 +443,7 @@ function App() {
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingActivity(null);
+    setModalSubmitError('');
   };
 
   const handleReportModalOpen = (activity) => {
@@ -480,9 +483,7 @@ function App() {
     const resolvedActivityData = view === 'cabinet' && session.user?.id
       ? {
           ...activityData,
-          employeeUserId: String(activityData?.person || '').trim()
-            ? String(session.user.id)
-            : '',
+          employeeUserId: String(session.user.id),
         }
       : activityData;
 
@@ -492,10 +493,14 @@ function App() {
 
     if (result.success) {
       handleModalClose();
+      setActionError('');
+      setModalSubmitError('');
       return;
     }
 
-    window.alert(result.error || 'Не удалось сохранить активность.');
+    const errorText = result.error || 'Не удалось сохранить активность.';
+    setModalSubmitError(errorText);
+    setActionError(errorText);
   };
 
   /**
@@ -503,14 +508,17 @@ function App() {
    * @param {string} id Идентификатор активности.
    * @returns {Promise<void>}
    */
-  const handleDelete = async (id) => {
-    if (window.confirm('Вы уверены, что хотите удалить эту активность?')) {
-      const result = await deleteActivity(id);
+  const handleDelete = (id) => {
+    setDeleteConfirmId(id);
+  };
 
-      if (!result.success) {
-        window.alert(result.error || 'Не удалось удалить активность.');
-        return;
-      }
+  const handleDeleteConfirmed = async () => {
+    if (!deleteConfirmId) return;
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
+    const result = await deleteActivity(id);
+    if (!result.success) {
+      setActionError(result.error || 'Не удалось удалить активность.');
     }
   };
 
@@ -523,10 +531,11 @@ function App() {
 
     if (result.success) {
       handleReportModalClose();
+      setActionError('');
       return;
     }
 
-    window.alert(result.error || 'Не удалось сохранить отчет.');
+    setActionError(result.error || 'Не удалось сохранить отчет.');
   };
 
   const combinedSyncError = syncError || reportsSyncError;
@@ -836,6 +845,7 @@ function App() {
                   <input
                     type="email"
                     autoComplete="username"
+                    autoFocus
                     value={loginEmail}
                     onChange={(event) => setLoginEmail(event.target.value)}
                     placeholder="user@company.com"
@@ -864,10 +874,10 @@ function App() {
             </section>
           ) : (
             <>
-              {canManageHierarchy && <AdminHierarchyPanel />}
               <PersonalCabinet
                 activities={activitiesWithReports}
                 currentUser={session.user}
+                canManageHierarchy={canManageHierarchy}
                 onReportClick={handleReportModalOpen}
                 onAddClick={handleAddClick}
                 onEdit={handleEditClick}
@@ -903,6 +913,7 @@ function App() {
           selectedDate={selectedDate}
           suggestions={suggestions}
           isSubmitting={isSaving}
+          submitError={modalSubmitError}
         />
       </Suspense>
 
@@ -919,6 +930,26 @@ function App() {
           isSubmitting={isReportSaving}
         />
       </Suspense>
+      {actionError && (
+        <div className="action-error-banner" role="alert">
+          <span>{actionError}</span>
+          <button type="button" className="action-error-banner__close" onClick={() => setActionError('')} aria-label="Закрыть">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {deleteConfirmId && (
+        <div className="delete-confirm-overlay" role="dialog" aria-modal="true" aria-label="Подтверждение удаления">
+          <div className="delete-confirm-dialog">
+            <p className="delete-confirm-dialog__text">Вы уверены, что хотите удалить эту активность?</p>
+            <div className="delete-confirm-dialog__actions">
+              <button type="button" className="delete-confirm-dialog__btn delete-confirm-dialog__btn--cancel" onClick={() => setDeleteConfirmId(null)}>Отмена</button>
+              <button type="button" className="delete-confirm-dialog__btn delete-confirm-dialog__btn--confirm" onClick={handleDeleteConfirmed}>Удалить</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

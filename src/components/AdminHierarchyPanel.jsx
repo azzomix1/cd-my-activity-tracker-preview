@@ -48,6 +48,7 @@ export default function AdminHierarchyPanel() {
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [showOnlyManagersWithReports, setShowOnlyManagersWithReports] = useState(false);
   const [selectedEmployeeUserIds, setSelectedEmployeeUserIds] = useState([]);
+  const [confirmDeleteLink, setConfirmDeleteLink] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -210,14 +211,14 @@ export default function AdminHierarchyPanel() {
     }
   };
 
-  const handleDelete = async (link) => {
-    const managerLabel = buildDisplayName(link.manager);
-    const employeeLabel = buildDisplayName(link.employee);
+  const handleDelete = (link) => {
+    setConfirmDeleteLink(link);
+  };
 
-    if (!window.confirm(`Удалить связь ${managerLabel} -> ${employeeLabel}?`)) {
-      return;
-    }
-
+  const handleDeleteConfirmed = async () => {
+    const link = confirmDeleteLink;
+    if (!link) return;
+    setConfirmDeleteLink(null);
     setIsSaving(true);
     setError('');
 
@@ -380,6 +381,23 @@ export default function AdminHierarchyPanel() {
           </div>
         )}
       </div>
+
+      {confirmDeleteLink && (
+        <div className="delete-confirm-overlay" role="dialog" aria-modal="true" aria-label="Подтверждение удаления">
+          <div className="delete-confirm-dialog">
+            <p className="delete-confirm-dialog__text">
+              Удалить связь{' '}
+              <strong>{buildDisplayName(confirmDeleteLink.manager)}</strong>
+              {' → '}
+              <strong>{buildDisplayName(confirmDeleteLink.employee)}</strong>?
+            </p>
+            <div className="delete-confirm-dialog__actions">
+              <button type="button" className="delete-confirm-dialog__btn delete-confirm-dialog__btn--cancel" onClick={() => setConfirmDeleteLink(null)}>Отмена</button>
+              <button type="button" className="delete-confirm-dialog__btn delete-confirm-dialog__btn--confirm" onClick={handleDeleteConfirmed}>Удалить</button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

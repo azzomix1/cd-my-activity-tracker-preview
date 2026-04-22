@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AUTH_ROLES, getAccessPolicy } from './accessPolicy';
+/* eslint-disable react-refresh/only-export-components -- SESSION_STATUSES and useAuthSession are intentionally co-located with AuthSessionProvider */
 import {
   clearAuthSessionToken,
   fetchCurrentSession,

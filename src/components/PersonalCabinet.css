@@ -256,14 +256,14 @@
   gap: 5px;
 }
 
-.cabinet__stub-label {
+.cabinet__user-label {
   font-size: 11px;
-  color: #a27d35;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.28);
+  color: #6b8fc9;
+  background: rgba(101, 146, 204, 0.1);
+  border: 1px solid rgba(101, 146, 204, 0.28);
   padding: 2px 8px;
   border-radius: 6px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .cabinet__person-select {
@@ -1660,10 +1660,10 @@ body[data-theme='midnight'] .cabinet__events-content {
   box-shadow: 0 8px 20px rgba(7, 9, 30, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
-.cabinet__stub-label {
-  color: #ffd88b;
-  background: rgba(228, 166, 53, 0.14);
-  border-color: rgba(255, 205, 118, 0.4);
+.cabinet__user-label {
+  color: #9db8e8;
+  background: rgba(101, 146, 204, 0.14);
+  border-color: rgba(130, 168, 228, 0.4);
 }
 
 .cabinet__person-select {
@@ -2827,6 +2827,7 @@ body[data-theme] .cabinet-attention-item--warning .cabinet-attention-item__meta 
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
 }
 
 .cabinet__hero-nav-btn {
@@ -2840,11 +2841,55 @@ body[data-theme] .cabinet-attention-item--warning .cabinet-attention-item__meta 
   font-weight: 700;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .cabinet__hero-nav-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(204, 214, 255, 0.34);
+}
+
+.cabinet__hero-nav-btn--active {
+  background: rgba(146, 167, 255, 0.18);
+  border-color: rgba(146, 167, 255, 0.5);
+}
+
+.cabinet__hierarchy-chevron {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.cabinet__hierarchy-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown wrapper — position: relative so the panel anchors to it */
+.cabinet__hierarchy-dropdown {
+  position: relative;
+}
+
+.cabinet__hierarchy-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 500;
+  width: min(720px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: 20px;
+  border: 1px solid rgba(183, 196, 255, 0.22);
+  background: rgba(22, 26, 50, 0.97);
+  box-shadow: 0 16px 48px rgba(0, 0, 10, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+body[data-theme='midnight'] .cabinet__hierarchy-panel {
+  background: rgba(245, 247, 255, 0.98);
+  border-color: rgba(100, 120, 200, 0.2);
+  box-shadow: 0 12px 40px rgba(60, 80, 160, 0.14);
 }
 
 .cabinet__hero-aside {
