@@ -11,6 +11,7 @@ export async function listActivities() {
     `
       select
         id,
+        employee_user_id,
         to_char(event_date, 'DD.MM.YYYY') as event_date,
         to_char(event_time, 'HH24:MI:SS') as event_time,
         name,
@@ -19,6 +20,28 @@ export async function listActivities() {
         event_type,
         visibility
       from activities
+      order by event_date asc, event_time asc nulls first, name asc
+    `,
+  );
+
+  return result.rows.map(mapDbRowToActivity);
+}
+
+export async function listPublicActivities() {
+  const result = await query(
+    `
+      select
+        id,
+        employee_user_id,
+        to_char(event_date, 'DD.MM.YYYY') as event_date,
+        to_char(event_time, 'HH24:MI:SS') as event_time,
+        name,
+        person,
+        objects,
+        event_type,
+        visibility
+      from activities
+      where visibility = 'public'
       order by event_date asc, event_time asc nulls first, name asc
     `,
   );
@@ -37,6 +60,7 @@ export async function createActivity(activity) {
     `
       insert into activities (
         id,
+        employee_user_id,
         event_date,
         event_time,
         name,
@@ -44,9 +68,10 @@ export async function createActivity(activity) {
         objects,
         event_type,
         visibility
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8)
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       returning
         id,
+        employee_user_id,
         to_char(event_date, 'DD.MM.YYYY') as event_date,
         to_char(event_time, 'HH24:MI:SS') as event_time,
         name,
@@ -57,6 +82,7 @@ export async function createActivity(activity) {
     `,
     [
       normalized.id,
+      normalized.employeeUserId || null,
       parseDateString(normalized.date),
       parseTimeString(normalized.time),
       normalized.name,
@@ -82,17 +108,19 @@ export async function updateActivity(id, activity) {
     `
       update activities
       set
-        event_date = $2,
-        event_time = $3,
-        name = $4,
-        person = $5,
-        objects = $6,
-        event_type = $7,
-        visibility = $8,
+        employee_user_id = $2,
+        event_date = $3,
+        event_time = $4,
+        name = $5,
+        person = $6,
+        objects = $7,
+        event_type = $8,
+        visibility = $9,
         updated_at = now()
       where id = $1
       returning
         id,
+        employee_user_id,
         to_char(event_date, 'DD.MM.YYYY') as event_date,
         to_char(event_time, 'HH24:MI:SS') as event_time,
         name,
@@ -103,6 +131,7 @@ export async function updateActivity(id, activity) {
     `,
     [
       targetId,
+      normalized.employeeUserId || null,
       parseDateString(normalized.date),
       parseTimeString(normalized.time),
       normalized.name,

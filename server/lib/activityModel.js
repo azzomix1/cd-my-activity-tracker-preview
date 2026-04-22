@@ -15,6 +15,7 @@ export function normalizeEventType(value) {
 export function normalizeActivityInput(activity = {}) {
   return {
     id: String(activity.id ?? '').trim(),
+    employeeUserId: String(activity.employeeUserId ?? '').trim(),
     date: String(activity.date ?? '').trim(),
     time: String(activity.time ?? '').trim(),
     name: String(activity.name ?? '').trim(),
@@ -64,6 +65,7 @@ export function mapDbRowToActivity(row) {
 
   return {
     id: String(row.id),
+    employeeUserId: row.employee_user_id ? String(row.employee_user_id) : '',
     date: eventDate,
     time: eventTime,
     name: row.name || '',

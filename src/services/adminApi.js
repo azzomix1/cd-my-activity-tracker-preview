@@ -1,0 +1,92 @@
+import { getAuthToken } from '../auth/authTokenStorage';
+
+const API_URL = import.meta.env.VITE_API_URL?.trim();
+
+function buildApiError(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+async function readJson(response) {
+  const text = await response.text();
+
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw buildApiError('Сервер вернул невалидный JSON.', response.status);
+  }
+}
+
+async function request(path, options = {}) {
+  if (!API_URL) {
+    throw buildApiError('Не задан адрес backend API.', 500);
+  }
+
+  const token = getAuthToken();
+
+  if (!token) {
+    throw buildApiError('Требуется авторизация.', 401);
+  }
+
+  const response = await fetch(`${API_URL}${path}`, {
+    cache: 'no-store',
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const payload = await readJson(response);
+
+  if (!response.ok || payload.success === false) {
+    throw buildApiError(payload.error || 'Не удалось выполнить запрос к admin API.', response.status);
+  }
+
+  return payload;
+}
+
+export async function fetchAdminUsers() {
+  const payload = await request('/admin/users');
+  return Array.isArray(payload.users) ? payload.users : [];
+}
+
+export async function fetchHierarchyLinks() {
+  const payload = await request('/admin/hierarchy');
+  return Array.isArray(payload.links) ? payload.links : [];
+}
+
+export async function assignHierarchyLink(managerUserId, employeeUserId) {
+  return request('/admin/hierarchy', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ managerUserId, employeeUserId }),
+  });
+}
+
+export async function assignHierarchyLinksBulk(managerUserId, employeeUserIds) {
+  return request('/admin/hierarchy/bulk', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ managerUserId, employeeUserIds }),
+  });
+}
+
+export async function deleteHierarchyLink(managerUserId, employeeUserId) {
+  return request('/admin/hierarchy', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ managerUserId, employeeUserId }),
+  });
+}

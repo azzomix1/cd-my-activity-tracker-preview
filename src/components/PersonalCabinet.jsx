@@ -89,6 +89,27 @@ function getRelativeDateLabel(dateString, todayKey, tomorrowKey) {
   return dateString;
 }
 
+function buildSessionAliases(currentUser) {
+  const aliases = new Set();
+  const displayName = String(currentUser?.displayName || '').trim().toLowerCase();
+  const email = String(currentUser?.email || '').trim().toLowerCase();
+
+  if (displayName) {
+    aliases.add(displayName);
+  }
+
+  if (email) {
+    aliases.add(email);
+
+    const atIndex = email.indexOf('@');
+    if (atIndex > 0) {
+      aliases.add(email.slice(0, atIndex));
+    }
+  }
+
+  return aliases;
+}
+
 /**
  * Возвращает `true`, если отчет по мероприятию заполнен.
  * При отсутствии поля считаем отчет незаполненным.
@@ -301,22 +322,25 @@ function CabinetEventCard({ activity, onEdit, onDelete, onReportClick, showRepor
 
 /**
  * Личный кабинет сотрудника.
- * Заглушка: авторизации нет — пользователь выбирается вручную из списка.
  *
  * @param {Object} props
  * @param {import('../services/activitiesApi').Activity[]} props.activities Все активности (включая личные).
- * @param {string[]} props.persons Список уникальных участников для выбора «текущего» сотрудника.
+ * @param {{ id?: string, email?: string, displayName?: string } | null} props.currentUser Авторизованный пользователь текущей сессии.
  * @param {(activity: import('../services/activitiesApi').Activity) => void} props.onReportClick Открытие окна отчета.
+ * @param {() => void} [props.onAddClick] Добавление мероприятия.
+ * @param {(activity: import('../services/activitiesApi').Activity) => void} [props.onEdit] Редактирование мероприятия.
+ * @param {(id: string) => void} [props.onDelete] Удаление мероприятия.
  * @returns {JSX.Element}
  */
-function PersonalCabinet({ activities, persons, onReportClick }) {
+function PersonalCabinet({ activities, currentUser, onReportClick, onAddClick, onEdit, onDelete }) {
   const todayKey = getTodayKey();
   const tomorrowKey = getRelativeDayKey(1);
   const today = new Date();
   const attentionSectionRef = useRef(null);
   const upcomingSectionRef = useRef(null);
+  const currentPerson = String(currentUser?.displayName || currentUser?.email || '').trim();
+  const sessionAliases = useMemo(() => buildSessionAliases(currentUser), [currentUser]);
 
-  const [currentPerson, setCurrentPerson] = useState(persons[0] || '');
   const [filter, setFilter]               = useState('all');
   const [isPastOpen, setIsPastOpen]       = useState(false);
   const [isPastMissingOpen, setIsPastMissingOpen] = useState(true);
@@ -328,8 +352,18 @@ function PersonalCabinet({ activities, persons, onReportClick }) {
 
   // --- Фильтрация по сотруднику ---
   const myActivities = useMemo(
-    () => activities.filter((a) => a.person === currentPerson),
-    [activities, currentPerson],
+    () => activities.filter((activity) => {
+      const employeeUserId = String(activity.employeeUserId || '').trim();
+      const currentUserId = String(currentUser?.id || '').trim();
+
+      if (employeeUserId && currentUserId) {
+        return employeeUserId === currentUserId;
+      }
+
+      const activityPerson = String(activity.person || '').trim().toLowerCase();
+      return activityPerson && sessionAliases.has(activityPerson);
+    }),
+    [activities, currentUser, sessionAliases],
   );
 
   // --- Предстоящие (дата >= сегодня) ---
@@ -489,7 +523,7 @@ function PersonalCabinet({ activities, persons, onReportClick }) {
     setSelectedDateFilter('');
     setCalendarMonth(today.getMonth());
     setCalendarYear(today.getFullYear());
-  }, [currentPerson]);
+  }, [currentPerson, today]);
 
   function getFilterCount(key) {
     if (key === 'private') return filteredPrivateUpcoming.length;
@@ -533,18 +567,6 @@ function PersonalCabinet({ activities, persons, onReportClick }) {
   function handleFocusDate(date) {
     setSelectedDateFilter(date);
     setFilter('all');
-  }
-
-  function handleAddStub() {
-    window.alert('Добавление мероприятий будет доступно после внедрения авторизации.');
-  }
-
-  function handleEditStub(activity) {
-    window.alert(`Редактирование в личном кабинете будет доступно после внедрения авторизации.\nМероприятие: ${activity.name}`);
-  }
-
-  function handleDeleteStub(id) {
-    window.alert(`Удаление в личном кабинете будет доступно после внедрения авторизации.\n(id: ${id})`);
   }
 
   function handleQuickNavigation() {
@@ -681,29 +703,19 @@ function PersonalCabinet({ activities, persons, onReportClick }) {
             </div>
             <div className="cabinet__user-meta">
               <span className="cabinet__stub-label">
-                Заглушка — авторизация не реализована
+                Авторизованный пользователь
               </span>
-              <select
-                className="cabinet__person-select"
-                value={currentPerson}
-                onChange={(e) => setCurrentPerson(e.target.value)}
-                aria-label="Выбор сотрудника"
-              >
-                {persons.length === 0 && (
-                  <option value="">— нет сотрудников —</option>
-                )}
-                {persons.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
+              <div className="cabinet__person-select" role="status" aria-label="Текущий сотрудник">
+                {currentPerson || 'Пользователь не определен'}
+              </div>
             </div>
           </div>
 
-          {/* Заглушка кнопки добавления */}
           <button
             className="btn btn-add cabinet__add-btn"
-            onClick={handleAddStub}
-            title="Доступно после авторизации"
+            onClick={onAddClick}
+            title="Добавить мероприятие"
+            disabled={typeof onAddClick !== 'function'}
           >
             + Добавить мероприятие
           </button>
@@ -920,8 +932,8 @@ function PersonalCabinet({ activities, persons, onReportClick }) {
                             <CabinetEventCard
                               key={a.id}
                               activity={a}
-                              onEdit={handleEditStub}
-                              onDelete={handleDeleteStub}
+                              onEdit={onEdit}
+                              onDelete={onDelete}
                             />
                           ))
                         )}
@@ -942,8 +954,8 @@ function PersonalCabinet({ activities, persons, onReportClick }) {
                             <CabinetEventCard
                               key={a.id}
                               activity={a}
-                              onEdit={handleEditStub}
-                              onDelete={handleDeleteStub}
+                              onEdit={onEdit}
+                              onDelete={onDelete}
                             />
                           ))
                         )}
@@ -959,8 +971,8 @@ function PersonalCabinet({ activities, persons, onReportClick }) {
                         <CabinetEventCard
                           key={a.id}
                           activity={a}
-                          onEdit={handleEditStub}
-                          onDelete={handleDeleteStub}
+                          onEdit={onEdit}
+                          onDelete={onDelete}
                         />
                       ))
                     )}

@@ -1,5 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AUTH_ROLES, getAccessPolicy } from './accessPolicy';
+import {
+  clearAuthSessionToken,
+  fetchCurrentSession,
+  loginWithPassword,
+  logoutFromApi,
+} from '../services/authApi';
+import { getAuthToken } from './authTokenStorage';
 
 const SESSION_STORAGE_KEY = 'activity-tracker-session';
 
@@ -80,18 +87,53 @@ export function AuthSessionProvider({ children }) {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.resolve(readStoredSession()).then((storedSession) => {
-      if (!isMounted) {
+    async function bootstrapSession() {
+      const token = getAuthToken();
+
+      if (!token) {
+        const storedSession = readStoredSession();
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (storedSession.user) {
+          setSessionState(storedSession);
+          setSessionStatus(SESSION_STATUSES.AUTHENTICATED);
+          return;
+        }
+
+        setSessionState(buildAnonymousSession());
+        setSessionStatus(SESSION_STATUSES.ANONYMOUS);
         return;
       }
 
-      setSessionState(storedSession);
-      setSessionStatus(
-        storedSession.user
-          ? SESSION_STATUSES.AUTHENTICATED
-          : SESSION_STATUSES.ANONYMOUS,
-      );
-    });
+      try {
+        const activeSession = normalizeSession(await fetchCurrentSession());
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSessionState(activeSession);
+        setSessionStatus(
+          activeSession.user
+            ? SESSION_STATUSES.AUTHENTICATED
+            : SESSION_STATUSES.ANONYMOUS,
+        );
+      } catch {
+        clearAuthSessionToken();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSessionState(buildAnonymousSession());
+        setSessionStatus(SESSION_STATUSES.ANONYMOUS);
+      }
+    }
+
+    bootstrapSession();
 
     return () => {
       isMounted = false;
@@ -123,8 +165,30 @@ export function AuthSessionProvider({ children }) {
   }, []);
 
   const clearSession = useCallback(() => {
+    clearAuthSessionToken();
     setSessionState(buildAnonymousSession());
     setSessionStatus(SESSION_STATUSES.ANONYMOUS);
+  }, []);
+
+  const login = useCallback(async (email, password) => {
+    const nextSession = normalizeSession(await loginWithPassword(email, password));
+    setSessionState(nextSession);
+    setSessionStatus(
+      nextSession.user
+        ? SESSION_STATUSES.AUTHENTICATED
+        : SESSION_STATUSES.ANONYMOUS,
+    );
+
+    return nextSession;
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await logoutFromApi();
+    } finally {
+      setSessionState(buildAnonymousSession());
+      setSessionStatus(SESSION_STATUSES.ANONYMOUS);
+    }
   }, []);
 
   const value = useMemo(() => ({
@@ -134,7 +198,9 @@ export function AuthSessionProvider({ children }) {
     permissions: getAccessPolicy(session.role),
     setSession,
     clearSession,
-  }), [clearSession, session, sessionStatus, setSession]);
+    login,
+    logout,
+  }), [clearSession, login, logout, session, sessionStatus, setSession]);
 
   return (
     <AuthSessionContext.Provider value={value}>

@@ -1,8 +1,11 @@
+import { getAuthToken } from '../auth/authTokenStorage';
+
 const API_URL = import.meta.env.VITE_API_URL?.trim();
 
 /**
  * @typedef {Object} Activity
  * @property {string} id Уникальный идентификатор активности.
+ * @property {string} employeeUserId Идентификатор сотрудника из таблицы пользователей.
  * @property {string} date Дата в формате `DD.MM.YYYY`.
  * @property {string} time Время в формате `HH:mm`.
  * @property {string} name Название активности.
@@ -118,6 +121,7 @@ function normalizeEventType(value) {
 export function normalizeActivity(activity = {}) {
   return {
     id: String(activity.id ?? ''),
+    employeeUserId: String(activity.employeeUserId ?? ''),
     date: normalizeDateValue(activity.date),
     time: normalizeTimeValue(activity.time),
     name: activity.name ?? '',
@@ -174,13 +178,30 @@ async function readJson(response) {
  * @returns {Promise<any>} Полезная нагрузка ответа API.
  */
 async function request(path = '', options = {}) {
+  const { requiresAuth = true, ...fetchOptions } = options;
+
   if (!API_URL) {
     throw buildApiError('Не задан адрес backend API.', 500);
   }
 
+  const headers = {
+    ...(fetchOptions.headers || {}),
+  };
+
+  if (requiresAuth) {
+    const token = getAuthToken();
+
+    if (!token) {
+      throw buildApiError('Требуется авторизация.', 401);
+    }
+
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     cache: 'no-store',
-    ...options,
+    ...fetchOptions,
+    headers,
   });
 
   const payload = await readJson(response);
@@ -201,6 +222,18 @@ async function request(path = '', options = {}) {
  */
 export async function fetchActivitiesFromApi() {
   const payload = await request('/activities');
+  return Array.isArray(payload.items)
+    ? payload.items.map(normalizeActivity)
+    : [];
+}
+
+/**
+ * Загружает только публичные активности без авторизации.
+ * @returns {Promise<Activity[]>} Нормализованный массив публичных активностей.
+ */
+export async function fetchPublicActivitiesFromApi() {
+  const payload = await request('/public/activities', { requiresAuth: false });
+
   return Array.isArray(payload.items)
     ? payload.items.map(normalizeActivity)
     : [];

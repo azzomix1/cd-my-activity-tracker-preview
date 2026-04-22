@@ -4,8 +4,23 @@ import {
   createActivity,
   deleteActivity,
   listActivities,
+  listPublicActivities,
   updateActivity,
 } from './lib/activitiesRepository.js';
+import {
+  assignDirectReportsBatch,
+  assignDirectReport,
+  createSessionForUser,
+  deleteSessionByToken,
+  findUserByEmail,
+  getAuthSessionByToken,
+  listHierarchyLinks,
+  listUsersForAdminPanel,
+  removeDirectReport,
+  toSessionPayload,
+  verifyPassword,
+} from './lib/authRepository.js';
+import { canAssignActivityPerson } from './lib/activityPersonAccess.js';
 import {
   deleteActivityReport,
   deleteActivityReportDraft,
@@ -39,6 +54,231 @@ const corsOrigin = !configuredCorsOrigins || configuredCorsOrigins.length === 0
 app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 
+function readBearerToken(request) {
+  const rawAuthorization = request.headers.authorization;
+
+  if (!rawAuthorization || typeof rawAuthorization !== 'string') {
+    return null;
+  }
+
+  const [scheme, token] = rawAuthorization.split(' ');
+
+  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) {
+    return null;
+  }
+
+  return token.trim();
+}
+
+async function attachAuthSession(request, _response, next) {
+  const token = readBearerToken(request);
+
+  if (!token) {
+    request.auth = null;
+    request.authToken = null;
+    next();
+    return;
+  }
+
+  try {
+    const sessionRow = await getAuthSessionByToken(token);
+
+    if (!sessionRow) {
+      request.auth = null;
+      request.authToken = null;
+      next();
+      return;
+    }
+
+    request.auth = {
+      userId: String(sessionRow.user_id),
+      email: String(sessionRow.email || ''),
+      role: String(sessionRow.role || 'administrator'),
+      displayName: String(sessionRow.display_name || ''),
+      issuedAt: sessionRow.issued_at,
+      expiresAt: sessionRow.expires_at,
+    };
+    request.authToken = token;
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
+function requireAuth(request, response, next) {
+  if (!request.auth) {
+    response.status(401).json({ success: false, error: 'Требуется авторизация.' });
+    return;
+  }
+
+  next();
+}
+
+function requireHierarchyAdmin(request, response, next) {
+  if (!request.auth) {
+    response.status(401).json({ success: false, error: 'Требуется авторизация.' });
+    return;
+  }
+
+  const role = String(request.auth.role || '').trim().toLowerCase();
+  const allowed = role === 'administrator' || role === 'full_manager';
+
+  if (!allowed) {
+    response.status(403).json({ success: false, error: 'Недостаточно прав для управления иерархией.' });
+    return;
+  }
+
+  next();
+}
+
+async function requirePersonAssignmentAccess(request, response, next) {
+  if (!request.auth) {
+    response.status(401).json({ success: false, error: 'Требуется авторизация.' });
+    return;
+  }
+
+  try {
+    const targetPerson = String(request.body?.activity?.person ?? '').trim();
+    const targetEmployeeUserId = String(request.body?.activity?.employeeUserId ?? '').trim();
+    const accessResult = await canAssignActivityPerson({
+      auth: request.auth,
+      targetEmployeeUserId,
+      targetPerson,
+    });
+
+    if (!accessResult.allowed) {
+      response.status(403).json({ success: false, error: accessResult.reason || 'Недостаточно прав.' });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось проверить права.' });
+  }
+}
+
+app.use('/api', attachAuthSession);
+
+app.post('/api/auth/login', async (request, response) => {
+  const email = String(request.body?.email || '').trim().toLowerCase();
+  const password = String(request.body?.password || '');
+
+  if (!email || !password) {
+    response.status(400).json({ success: false, error: 'Email и пароль обязательны.' });
+    return;
+  }
+
+  try {
+    const user = await findUserByEmail(email);
+
+    if (!user || !verifyPassword(password, user.password_hash)) {
+      response.status(401).json({ success: false, error: 'Неверный email или пароль.' });
+      return;
+    }
+
+    const issuedSession = await createSessionForUser(user.id);
+    const sessionPayload = toSessionPayload({
+      user_id: user.id,
+      email: user.email,
+      display_name: user.display_name,
+      role: user.role,
+      issued_at: issuedSession.issuedAt,
+      expires_at: issuedSession.expiresAt,
+    });
+
+    response.json({
+      success: true,
+      session: sessionPayload,
+      token: issuedSession.token,
+    });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось выполнить вход.' });
+  }
+});
+
+app.get('/api/auth/session', requireAuth, async (request, response) => {
+  try {
+    const sessionPayload = toSessionPayload({
+      user_id: request.auth.userId,
+      email: request.auth.email,
+      display_name: request.auth.displayName,
+      role: request.auth.role,
+      issued_at: request.auth.issuedAt,
+      expires_at: request.auth.expiresAt,
+    }, 'token');
+
+    response.json({ success: true, session: sessionPayload });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось получить сессию.' });
+  }
+});
+
+app.post('/api/auth/logout', requireAuth, async (request, response) => {
+  try {
+    await deleteSessionByToken(request.authToken);
+    response.json({ success: true });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось завершить сессию.' });
+  }
+});
+
+app.get('/api/admin/users', requireAuth, requireHierarchyAdmin, async (_request, response) => {
+  try {
+    const users = await listUsersForAdminPanel();
+    response.json({ success: true, users });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось загрузить пользователей.' });
+  }
+});
+
+app.get('/api/admin/hierarchy', requireAuth, requireHierarchyAdmin, async (_request, response) => {
+  try {
+    const links = await listHierarchyLinks();
+    response.json({ success: true, links });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось загрузить иерархию.' });
+  }
+});
+
+app.post('/api/admin/hierarchy', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  try {
+    await assignDirectReport(
+      request.body?.managerUserId,
+      request.body?.employeeUserId,
+    );
+
+    response.status(201).json({ success: true });
+  } catch (error) {
+    response.status(400).json({ success: false, error: error.message || 'Не удалось назначить сотрудника.' });
+  }
+});
+
+app.post('/api/admin/hierarchy/bulk', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  try {
+    await assignDirectReportsBatch(
+      request.body?.managerUserId,
+      request.body?.employeeUserIds,
+    );
+
+    response.status(201).json({ success: true });
+  } catch (error) {
+    response.status(400).json({ success: false, error: error.message || 'Не удалось назначить сотрудников.' });
+  }
+});
+
+app.delete('/api/admin/hierarchy', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  try {
+    await removeDirectReport(
+      request.body?.managerUserId,
+      request.body?.employeeUserId,
+    );
+
+    response.json({ success: true });
+  } catch (error) {
+    response.status(400).json({ success: false, error: error.message || 'Не удалось удалить связь.' });
+  }
+});
+
 app.get('/api/health', async (_request, response) => {
   try {
     await pool.query('select 1');
@@ -48,7 +288,16 @@ app.get('/api/health', async (_request, response) => {
   }
 });
 
-app.get('/api/activities', async (_request, response) => {
+app.get('/api/public/activities', async (_request, response) => {
+  try {
+    const items = await listPublicActivities();
+    response.json({ success: true, items });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Failed to load public activities.' });
+  }
+});
+
+app.get('/api/activities', requireAuth, async (_request, response) => {
   try {
     const items = await listActivities();
     response.json({ success: true, items });
@@ -57,7 +306,7 @@ app.get('/api/activities', async (_request, response) => {
   }
 });
 
-app.post('/api/activities', async (request, response) => {
+app.post('/api/activities', requireAuth, requirePersonAssignmentAccess, async (request, response) => {
   try {
     const item = await createActivity(request.body?.activity || {});
     response.status(201).json({ success: true, item });
@@ -66,7 +315,7 @@ app.post('/api/activities', async (request, response) => {
   }
 });
 
-app.put('/api/activities/:id', async (request, response) => {
+app.put('/api/activities/:id', requireAuth, requirePersonAssignmentAccess, async (request, response) => {
   try {
     const item = await updateActivity(request.params.id, request.body?.activity || {});
     response.json({ success: true, item });
@@ -76,7 +325,7 @@ app.put('/api/activities/:id', async (request, response) => {
   }
 });
 
-app.delete('/api/activities/:id', async (request, response) => {
+app.delete('/api/activities/:id', requireAuth, async (request, response) => {
   try {
     await deleteActivity(request.params.id);
     response.json({ success: true });
@@ -86,7 +335,7 @@ app.delete('/api/activities/:id', async (request, response) => {
   }
 });
 
-app.get('/api/reports', async (_request, response) => {
+app.get('/api/reports', requireAuth, async (_request, response) => {
   try {
     const snapshot = await getReportsSnapshot();
     response.json({ success: true, ...snapshot });
@@ -95,7 +344,7 @@ app.get('/api/reports', async (_request, response) => {
   }
 });
 
-app.put('/api/reports/:activityId', async (request, response) => {
+app.put('/api/reports/:activityId', requireAuth, async (request, response) => {
   try {
     const item = await upsertActivityReport(request.params.activityId, request.body?.report || {});
     response.json({ success: true, item });
@@ -104,7 +353,7 @@ app.put('/api/reports/:activityId', async (request, response) => {
   }
 });
 
-app.delete('/api/reports/:activityId', async (request, response) => {
+app.delete('/api/reports/:activityId', requireAuth, async (request, response) => {
   try {
     await deleteActivityReport(request.params.activityId);
     response.json({ success: true });
@@ -113,7 +362,7 @@ app.delete('/api/reports/:activityId', async (request, response) => {
   }
 });
 
-app.put('/api/report-drafts/:activityId', async (request, response) => {
+app.put('/api/report-drafts/:activityId', requireAuth, async (request, response) => {
   try {
     const item = await upsertActivityReportDraft(request.params.activityId, request.body?.draft || {});
     response.json({ success: true, item });
@@ -122,7 +371,7 @@ app.put('/api/report-drafts/:activityId', async (request, response) => {
   }
 });
 
-app.delete('/api/report-drafts/:activityId', async (request, response) => {
+app.delete('/api/report-drafts/:activityId', requireAuth, async (request, response) => {
   try {
     await deleteActivityReportDraft(request.params.activityId);
     response.json({ success: true });

@@ -9,6 +9,9 @@
     "api": "node server/index.js",
     "api:dev": "node --watch server/index.js",
     "db:migrate": "node scripts/db-migrate.mjs",
+    "auth:create-user": "node scripts/create-user.mjs",
+    "auth:assign-report": "node scripts/assign-report.mjs",
+    "auth:map-person-alias": "node scripts/map-person-alias.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

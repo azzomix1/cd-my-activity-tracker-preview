@@ -1,3 +1,5 @@
+import { getAuthToken } from '../auth/authTokenStorage';
+
 const API_URL = import.meta.env.VITE_API_URL?.trim();
 
 function buildApiError(message, status) {
@@ -68,9 +70,21 @@ async function request(path = '', options = {}) {
     throw buildApiError('Не задан адрес backend API.', 500);
   }
 
+  const token = getAuthToken();
+
+  if (!token) {
+    throw buildApiError('Требуется авторизация.', 401);
+  }
+
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`,
+  };
+
   const response = await fetch(`${API_URL}${path}`, {
     cache: 'no-store',
     ...options,
+    headers,
   });
 
   const payload = await readJson(response);

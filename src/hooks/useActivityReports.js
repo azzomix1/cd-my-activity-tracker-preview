@@ -14,7 +14,7 @@ function cloneTimers(timers) {
   return Array.from(timers.values());
 }
 
-export function useActivityReports() {
+export function useActivityReports({ enabled = false } = {}) {
   const [reportsByActivityId, setReportsByActivityId] = useState({});
   const [reportDraftsByActivityId, setReportDraftsByActivityId] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -24,6 +24,20 @@ export function useActivityReports() {
 
   useEffect(() => {
     let isMounted = true;
+
+    if (!enabled) {
+      setReportsByActivityId({});
+      setReportDraftsByActivityId({});
+      setSyncError('');
+      setIsLoading(false);
+      return () => {
+        cloneTimers(draftTimersRef.current).forEach((timerId) => {
+          window.clearTimeout(timerId);
+        });
+
+        draftTimersRef.current.clear();
+      };
+    }
 
     async function loadReportState() {
       setIsLoading(true);
@@ -62,9 +76,13 @@ export function useActivityReports() {
 
       draftTimersRef.current.clear();
     };
-  }, []);
+  }, [enabled]);
 
   const saveReport = useCallback(async (activityId, reportData) => {
+    if (!enabled) {
+      return { success: false, error: 'Требуется авторизация.' };
+    }
+
     const normalizedReport = normalizeReportData({
       ...reportData,
       updatedAt: new Date().toISOString(),
@@ -105,9 +123,13 @@ export function useActivityReports() {
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [enabled]);
 
   const upsertDraft = useCallback(async (activityId, draftData) => {
+    if (!enabled) {
+      return { success: false, error: 'Требуется авторизация.' };
+    }
+
     const normalizedDraft = normalizeReportDraftData({
       ...draftData,
       updatedAt: new Date().toISOString(),
@@ -125,9 +147,13 @@ export function useActivityReports() {
       setSyncError(error.message || 'Не удалось сохранить черновик отчета.');
       return { success: false, error: error.message || 'Не удалось сохранить черновик отчета.' };
     }
-  }, []);
+  }, [enabled]);
 
   const queueDraftChange = useCallback((activityId, draftData) => {
+    if (!enabled) {
+      return;
+    }
+
     const normalizedActivityId = String(activityId || '').trim();
 
     if (!normalizedActivityId) {
@@ -183,9 +209,13 @@ export function useActivityReports() {
     }, DRAFT_SYNC_DELAY_MS);
 
     draftTimersRef.current.set(normalizedActivityId, timerId);
-  }, [upsertDraft]);
+  }, [enabled, upsertDraft]);
 
   const discardDraft = useCallback(async (activityId) => {
+    if (!enabled) {
+      return { success: false, error: 'Требуется авторизация.' };
+    }
+
     const normalizedActivityId = String(activityId || '').trim();
 
     if (!normalizedActivityId) {
@@ -216,7 +246,7 @@ export function useActivityReports() {
       setSyncError(error.message || 'Не удалось удалить черновик отчета.');
       return { success: false, error: error.message || 'Не удалось удалить черновик отчета.' };
     }
-  }, []);
+  }, [enabled]);
 
   return {
     reportsByActivityId,

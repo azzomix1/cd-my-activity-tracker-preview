@@ -3,6 +3,7 @@ import {
   createActivityInApi,
   deleteActivityInApi,
   fetchActivitiesFromApi,
+  fetchPublicActivitiesFromApi,
   isActivitiesApiConfigured,
   normalizeActivity,
   updateActivityInApi,
@@ -79,7 +80,7 @@ function getApiConfigurationError() {
  * getUniqueValues: (field: 'name'|'person'|'objects') => string[]
  * }}
  */
-export function useActivities() {
+export function useActivities({ isAuthenticated = false } = {}) {
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -101,7 +102,9 @@ export function useActivities() {
       }
 
       try {
-        const remoteActivities = await fetchActivitiesFromApi();
+        const remoteActivities = isAuthenticated
+          ? await fetchActivitiesFromApi()
+          : await fetchPublicActivitiesFromApi();
 
         if (!isMounted) {
           return;
@@ -130,7 +133,7 @@ export function useActivities() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const getActivitiesForMonth = useCallback((year, month) => {
     const result = {};
@@ -185,6 +188,12 @@ export function useActivities() {
   }, [activities]);
 
   const addActivity = useCallback((activityData) => {
+    if (!isAuthenticated) {
+      const error = 'Требуется авторизация для изменения данных.';
+      setSyncError(error);
+      return Promise.resolve({ success: false, error });
+    }
+
     if (!isActivitiesApiConfigured()) {
       const error = getApiConfigurationError();
       setSyncError(error);
@@ -212,9 +221,15 @@ export function useActivities() {
       .finally(() => {
         setIsSaving(false);
       });
-  }, []);
+  }, [isAuthenticated]);
 
   const updateActivity = useCallback((activityData) => {
+    if (!isAuthenticated) {
+      const error = 'Требуется авторизация для изменения данных.';
+      setSyncError(error);
+      return Promise.resolve({ success: false, error });
+    }
+
     if (!isActivitiesApiConfigured()) {
       const error = getApiConfigurationError();
       setSyncError(error);
@@ -243,9 +258,15 @@ export function useActivities() {
       .finally(() => {
         setIsSaving(false);
       });
-  }, []);
+  }, [isAuthenticated]);
 
   const deleteActivity = useCallback((id) => {
+    if (!isAuthenticated) {
+      const error = 'Требуется авторизация для изменения данных.';
+      setSyncError(error);
+      return Promise.resolve({ success: false, error });
+    }
+
     if (!isActivitiesApiConfigured()) {
       const error = getApiConfigurationError();
       setSyncError(error);
@@ -268,7 +289,7 @@ export function useActivities() {
       .finally(() => {
         setIsSaving(false);
       });
-  }, []);
+  }, [isAuthenticated]);
 
   const getUniqueValues = useCallback((field) => {
     const values = activities

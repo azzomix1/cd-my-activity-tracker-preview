@@ -2,9 +2,11 @@ import { Suspense, lazy, useState, useMemo, useEffect, useRef } from 'react';
 import { ArrowUp, CircleAlert, CloudCheck, LoaderCircle, Search } from 'lucide-react';
 import Calendar from './components/Calendar';
 import ActivitiesPanel from './components/ActivitiesPanel';
+import AdminHierarchyPanel from './components/AdminHierarchyPanel';
 import { useActivities } from './hooks/useActivities';
 import { useActivityReports } from './hooks/useActivityReports';
 import { CALENDAR_VIEW_MODES, usePublicCalendar } from './hooks/usePublicCalendar';
+import { SESSION_STATUSES, useAuthSession } from './auth/sessionContext.jsx';
 import './App.css';
 
 const ActivityModal = lazy(() => import('./components/ActivityModal'));
@@ -24,6 +26,13 @@ const LEGACY_THEME_ALIASES = {
 const REPORTS_STORAGE_KEY = 'activity-tracker-reports';
 const REPORT_DRAFTS_STORAGE_KEY = 'activity-tracker-report-drafts';
 const PUBLIC_CALENDAR_SETTINGS_STORAGE_KEY = 'activity-tracker-public-calendar-settings';
+
+const ROLE_LABELS = {
+  administrator: 'Администратор',
+  employee: 'Сотрудник',
+  line_manager: 'Линейный руководитель',
+  full_manager: 'Руководитель (полный)',
+};
 
 function readStoredPublicCalendarSettings() {
   try {
@@ -137,6 +146,17 @@ function App() {
   const [isStatusExpanded, setIsStatusExpanded] = useState(false);
   const statusRef = useRef(null);
   const hasMigratedLegacyReportsRef = useRef(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const {
+    session,
+    sessionStatus,
+    isAuthenticated,
+    login,
+    logout,
+  } = useAuthSession();
 
   // Эффект параллакса для фона
   useEffect(() => {
@@ -220,7 +240,7 @@ function App() {
     updateActivity,
     deleteActivity,
     getUniqueValues
-  } = useActivities();
+  } = useActivities({ isAuthenticated });
 
   const {
     reportsByActivityId,
@@ -232,7 +252,7 @@ function App() {
     upsertDraft,
     queueDraftChange,
     discardDraft,
-  } = useActivityReports();
+  } = useActivityReports({ enabled: isAuthenticated });
 
   const activitiesWithReports = useMemo(
     () => activities.map((activity) => {
@@ -293,14 +313,6 @@ function App() {
 
     migrateLegacyReportState();
   }, [activities, isReportsLoading, reportDraftsByActivityId, reportsByActivityId, saveReport, upsertDraft]);
-
-  const cabinetPersons = useMemo(() => {
-    const values = activitiesWithReports
-      .map((activity) => activity.person)
-      .filter((value) => value && value.trim());
-
-    return [...new Set(values)].sort();
-  }, [activitiesWithReports]);
 
   // Подсказки для автодополнения
   const suggestions = useMemo(() => ({
@@ -465,9 +477,18 @@ function App() {
    * @returns {Promise<void>}
    */
   const handleSave = async (activityData, isEditMode) => {
+    const resolvedActivityData = view === 'cabinet' && session.user?.id
+      ? {
+          ...activityData,
+          employeeUserId: String(activityData?.person || '').trim()
+            ? String(session.user.id)
+            : '',
+        }
+      : activityData;
+
     const result = isEditMode
-      ? await updateActivity(activityData)
-      : await addActivity(activityData);
+      ? await updateActivity(resolvedActivityData)
+      : await addActivity(resolvedActivityData);
 
     if (result.success) {
       handleModalClose();
@@ -543,6 +564,44 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleLoginSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!loginEmail.trim() || !loginPassword) {
+      setAuthError('Введите email и пароль.');
+      return;
+    }
+
+    setIsAuthSubmitting(true);
+    setAuthError('');
+
+    try {
+      await login(loginEmail.trim(), loginPassword);
+      setLoginPassword('');
+      setView('cabinet');
+    } catch (error) {
+      setAuthError(error.message || 'Не удалось выполнить вход.');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsAuthSubmitting(true);
+    setAuthError('');
+
+    try {
+      await logout();
+      setView('calendar');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  };
+
+  const currentUserDisplayName = session.user?.displayName || session.user?.email || 'Пользователь';
+  const currentUserRoleLabel = ROLE_LABELS[session.role] || 'Сотрудник';
+  const canManageHierarchy = session.role === 'administrator' || session.role === 'full_manager';
+
   return (
     <div className={`container${view === 'cabinet' ? ' container--cabinet' : ''}`}>
       <div className="top-controls">
@@ -562,6 +621,33 @@ function App() {
           </button>
         </nav>
         <div className="top-controls__actions">
+          {sessionStatus !== SESSION_STATUSES.LOADING && (
+            <span
+              className="auth-chip"
+              title={isAuthenticated
+                ? `${currentUserDisplayName} · ${currentUserRoleLabel}`
+                : 'Гостевой доступ'}
+            >
+              {isAuthenticated
+                ? (
+                  <>
+                    <span className="auth-chip__name">{currentUserDisplayName}</span>
+                    <span className="auth-chip__role">{currentUserRoleLabel}</span>
+                  </>
+                )
+                : 'Гость'}
+            </span>
+          )}
+          {isAuthenticated && (
+            <button
+              type="button"
+              className="auth-logout-btn"
+              onClick={handleLogout}
+              disabled={isAuthSubmitting}
+            >
+              Выйти
+            </button>
+          )}
           <button
             className="theme-switch"
             onClick={handleThemeToggle}
@@ -739,11 +825,56 @@ function App() {
             </div>
           )}
         >
-          <PersonalCabinet
-            activities={activitiesWithReports}
-            persons={cabinetPersons}
-            onReportClick={handleReportModalOpen}
-          />
+          {!isAuthenticated ? (
+            <section className="auth-card" aria-label="Авторизация для личного кабинета">
+              <h2>Вход в личный кабинет</h2>
+              <p>Публичный календарь доступен без входа. Для кабинета войдите по email и паролю.</p>
+
+              <form className="auth-form" onSubmit={handleLoginSubmit}>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    autoComplete="username"
+                    value={loginEmail}
+                    onChange={(event) => setLoginEmail(event.target.value)}
+                    placeholder="user@company.com"
+                    required
+                  />
+                </label>
+
+                <label>
+                  Пароль
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={loginPassword}
+                    onChange={(event) => setLoginPassword(event.target.value)}
+                    placeholder="Введите пароль"
+                    required
+                  />
+                </label>
+
+                {authError && <div className="auth-error">{authError}</div>}
+
+                <button type="submit" disabled={isAuthSubmitting || sessionStatus === SESSION_STATUSES.LOADING}>
+                  {isAuthSubmitting ? 'Выполняем вход...' : 'Войти'}
+                </button>
+              </form>
+            </section>
+          ) : (
+            <>
+              {canManageHierarchy && <AdminHierarchyPanel />}
+              <PersonalCabinet
+                activities={activitiesWithReports}
+                currentUser={session.user}
+                onReportClick={handleReportModalOpen}
+                onAddClick={handleAddClick}
+                onEdit={handleEditClick}
+                onDelete={handleDelete}
+              />
+            </>
+          )}
         </Suspense>
       )}
 
