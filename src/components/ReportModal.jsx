@@ -138,6 +138,7 @@ function ReportModal({
   const isEditMode = Boolean(activity?.reportData);
   const hasSavedDraft = Boolean(draftData);
   const formData = formState.value;
+  const isBusy = isSubmitting || isDiscarding;
 
   useEffect(() => {
     dispatchFormState({ type: 'syncInitial', payload: initialFormData });
@@ -164,21 +165,21 @@ function ReportModal({
     }
 
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !isSubmitting && !isDiscarding) {
+      if (event.key === 'Escape' && !isBusy) {
         onClose();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isDiscarding, isOpen, isSubmitting, onClose]);
+  }, [isBusy, isOpen, onClose]);
 
   if (!isOpen || !activity) {
     return null;
   }
 
   function handleOverlayClick(event) {
-    if (event.target === event.currentTarget && !isSubmitting && !isDiscarding) {
+    if (event.target === event.currentTarget && !isBusy) {
       onClose();
     }
   }
@@ -212,7 +213,7 @@ function ReportModal({
   }
 
   async function handleDiscardDraft() {
-    if (typeof onDiscardDraft !== 'function' || isDiscarding || isSubmitting) {
+    if (typeof onDiscardDraft !== 'function' || isBusy) {
       return;
     }
 
@@ -272,7 +273,7 @@ function ReportModal({
                 name="date"
                 value={formData.date}
                 onChange={handleChange}
-                disabled={isSubmitting}
+                disabled={isBusy}
                 required
               />
             </div>
@@ -285,7 +286,7 @@ function ReportModal({
                 name="time"
                 value={formData.time}
                 onChange={handleChange}
-                disabled={isSubmitting}
+                disabled={isBusy}
               />
             </div>
           </div>
@@ -299,7 +300,7 @@ function ReportModal({
               value={formData.employeeName}
               onChange={handleChange}
               placeholder="Например, Антон"
-              disabled={isSubmitting}
+              disabled={isBusy}
               required
             />
           </div>
@@ -313,7 +314,7 @@ function ReportModal({
               onChange={handleChange}
               placeholder="Например, Проекты Юнити"
               rows={3}
-              disabled={isSubmitting}
+              disabled={isBusy}
               required
             />
           </div>
@@ -327,7 +328,7 @@ function ReportModal({
               onChange={handleChange}
               placeholder="Например, Презентация"
               rows={2}
-              disabled={isSubmitting}
+              disabled={isBusy}
               required
             />
           </div>
@@ -339,7 +340,7 @@ function ReportModal({
                 type="button"
                 className="btn btn-edit report-modal__project-add"
                 onClick={handleAddProject}
-                disabled={isSubmitting}
+                disabled={isBusy}
               >
                 <Plus size={14} aria-hidden="true" />
                 Добавить проект
@@ -357,13 +358,13 @@ function ReportModal({
                       value={project}
                       onChange={(event) => handleProjectChange(index, event.target.value)}
                       placeholder={`Проект ${index + 1}`}
-                      disabled={isSubmitting}
+                      disabled={isBusy}
                     />
                     <button
                       type="button"
                       className="btn btn-cancel report-modal__project-remove"
                       onClick={() => handleRemoveProject(index)}
-                      disabled={isSubmitting}
+                      disabled={isBusy}
                       aria-label={`Удалить проект ${index + 1}`}
                     >
                       <X size={14} aria-hidden="true" />
@@ -386,7 +387,7 @@ function ReportModal({
                 onChange={handleChange}
                 placeholder="Например, 10"
                 min="0"
-                disabled={isSubmitting}
+                disabled={isBusy}
               />
             </div>
 
@@ -400,7 +401,7 @@ function ReportModal({
                 onChange={handleChange}
                 placeholder="Например, 3"
                 min="0"
-                disabled={isSubmitting}
+                disabled={isBusy}
               />
             </div>
           </div>
@@ -414,12 +415,12 @@ function ReportModal({
               onChange={handleChange}
               placeholder="Можно оставить развернутый комментарий по итогам встречи"
               rows={6}
-              disabled={isSubmitting}
+              disabled={isBusy}
             />
           </div>
 
           <div className="modal-buttons">
-            <button type="button" className="btn btn-cancel" onClick={onClose} disabled={isSubmitting || isDiscarding}>
+            <button type="button" className="btn btn-cancel" onClick={onClose} disabled={isBusy}>
               Отмена
             </button>
             {hasSavedDraft && (
@@ -427,12 +428,12 @@ function ReportModal({
                 type="button"
                 className="btn btn-edit"
                 onClick={handleDiscardDraft}
-                disabled={isSubmitting || isDiscarding}
+                disabled={isBusy}
               >
                 {isDiscarding ? 'Очищаем...' : 'Очистить черновик'}
               </button>
             )}
-            <button type="submit" className="btn btn-save" disabled={isSubmitting || isDiscarding}>
+            <button type="submit" className="btn btn-save" disabled={isBusy}>
               {isSubmitting ? 'Сохранение...' : 'Сохранить отчет'}
             </button>
           </div>

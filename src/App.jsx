@@ -609,8 +609,15 @@ function App() {
 
     try {
       await logout();
-      setView('calendar');
     } finally {
+      setView('calendar');
+      setIsModalOpen(false);
+      setEditingActivity(null);
+      setIsReportModalOpen(false);
+      setReportActivity(null);
+      setDeleteConfirmId(null);
+      setModalSubmitError('');
+      setActionError('');
       setIsAuthSubmitting(false);
     }
   };
