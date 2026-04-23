@@ -29,6 +29,7 @@ export function useActivityReports({ enabled = false } = {}) {
       setReportsByActivityId({});
       setReportDraftsByActivityId({});
       setSyncError('');
+      setIsSaving(false);
       setIsLoading(false);
       const timerMapEarly = draftTimersRef.current;
       return () => {
@@ -166,10 +167,14 @@ export function useActivityReports({ enabled = false } = {}) {
     }
 
     if (!draftData) {
+      let previousDraft = null;
+
       setReportDraftsByActivityId((prev) => {
         if (!(normalizedActivityId in prev)) {
           return prev;
         }
+
+        previousDraft = prev[normalizedActivityId];
 
         const nextDrafts = { ...prev };
         delete nextDrafts[normalizedActivityId];
@@ -183,6 +188,19 @@ export function useActivityReports({ enabled = false } = {}) {
           await deleteReportDraftFromApi(normalizedActivityId);
           setSyncError('');
         } catch (error) {
+          if (previousDraft) {
+            setReportDraftsByActivityId((prev) => {
+              if (normalizedActivityId in prev) {
+                return prev;
+              }
+
+              return {
+                ...prev,
+                [normalizedActivityId]: previousDraft,
+              };
+            });
+          }
+
           setSyncError(error.message || 'Не удалось удалить черновик отчета.');
         }
       }, DRAFT_SYNC_DELAY_MS);
@@ -227,10 +245,14 @@ export function useActivityReports({ enabled = false } = {}) {
       draftTimersRef.current.delete(normalizedActivityId);
     }
 
+    let previousDraft = null;
+
     setReportDraftsByActivityId((prev) => {
       if (!(normalizedActivityId in prev)) {
         return prev;
       }
+
+       previousDraft = prev[normalizedActivityId];
 
       const nextDrafts = { ...prev };
       delete nextDrafts[normalizedActivityId];
@@ -242,6 +264,19 @@ export function useActivityReports({ enabled = false } = {}) {
       setSyncError('');
       return { success: true };
     } catch (error) {
+      if (previousDraft) {
+        setReportDraftsByActivityId((prev) => {
+          if (normalizedActivityId in prev) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            [normalizedActivityId]: previousDraft,
+          };
+        });
+      }
+
       setSyncError(error.message || 'Не удалось удалить черновик отчета.');
       return { success: false, error: error.message || 'Не удалось удалить черновик отчета.' };
     }

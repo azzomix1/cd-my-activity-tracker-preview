@@ -572,10 +572,18 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
 
   const handleEmployeeScopeChange = useCallback((nextScope) => {
     setEmployeeScope(nextScope);
+    setFilter('all');
+    setSelectedDateFilter('');
 
     if (nextScope !== EMPLOYEE_SCOPE_VALUES.TEAM) {
       setSelectedEmployeeId('');
     }
+  }, []);
+
+  const handleSelectedEmployeeChange = useCallback((nextEmployeeUserId) => {
+    setSelectedEmployeeId(nextEmployeeUserId);
+    setFilter('all');
+    setSelectedDateFilter('');
   }, []);
 
   useEffect(() => {
@@ -587,6 +595,16 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
       setTeamSummaryEmployeeUserId('');
     }
   }, [teamSummaryEmployeeUserId, teamUsers]);
+
+  useEffect(() => {
+    if (!selectedEmployeeId) {
+      return;
+    }
+
+    if (!teamUsers.some((user) => user.id === selectedEmployeeId)) {
+      setSelectedEmployeeId('');
+    }
+  }, [selectedEmployeeId, teamUsers]);
 
   const selectedEmployee = useMemo(
     () => teamUsers.find((user) => user.id === selectedEmployeeId) || null,
@@ -604,7 +622,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
   );
 
   const teamReportRows = useMemo(() => {
-    if (Array.isArray(teamSummary.reports) && teamSummary.reports.length > 0) {
+    if (Array.isArray(teamSummary.reports)) {
       return teamSummary.reports;
     }
 
@@ -803,10 +821,11 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
     }
 
     previousSelectedPersonLabelRef.current = selectedPersonLabel;
+    const now = new Date();
     setSelectedDateFilter('');
-    setCalendarMonth(today.getMonth());
-    setCalendarYear(today.getFullYear());
-  }, [selectedPersonLabel, today]);
+    setCalendarMonth(now.getMonth());
+    setCalendarYear(now.getFullYear());
+  }, [selectedPersonLabel]);
 
   useEffect(() => {
     if (!isHierarchyOpen) return undefined;
@@ -1143,6 +1162,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
     setEmployeeScope(EMPLOYEE_SCOPE_VALUES.TEAM);
     setSelectedEmployeeId(employeeUserId);
     setSelectedDateFilter('');
+    setFilter('all');
     setActiveCabinetSection(CABINET_SECTIONS.SCHEDULE);
     window.setTimeout(() => {
       upcomingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1654,7 +1674,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                         <select
                           className="cabinet__person-select"
                           value={selectedEmployeeId}
-                          onChange={(event) => setSelectedEmployeeId(event.target.value)}
+                          onChange={(event) => handleSelectedEmployeeChange(event.target.value)}
                           disabled={isTeamUsersLoading}
                         >
                           <option value="">Все сотрудники</option>

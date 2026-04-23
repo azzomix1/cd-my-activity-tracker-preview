@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { fromInputDateFormat } from '../utils/dateUtils';
 
@@ -60,6 +60,66 @@ function createInitialReportData(activity, draftData = null) {
   };
 }
 
+function createFormState(initialFormData) {
+  return {
+    initialSnapshot: JSON.stringify(initialFormData),
+    value: initialFormData,
+  };
+}
+
+function formStateReducer(state, action) {
+  if (action.type === 'syncInitial') {
+    const nextInitialSnapshot = JSON.stringify(action.payload);
+
+    if (state.initialSnapshot === nextInitialSnapshot) {
+      return state;
+    }
+
+    const currentSnapshot = JSON.stringify(state.value);
+
+    if (currentSnapshot === state.initialSnapshot) {
+      return {
+        initialSnapshot: nextInitialSnapshot,
+        value: action.payload,
+      };
+    }
+
+    return {
+      ...state,
+      initialSnapshot: nextInitialSnapshot,
+    };
+  }
+
+  if (action.type === 'replace') {
+    return {
+      ...state,
+      value: action.payload,
+    };
+  }
+
+  if (action.type === 'patch') {
+    return {
+      ...state,
+      value: {
+        ...state.value,
+        ...action.payload,
+      },
+    };
+  }
+
+  if (action.type === 'updateProjects') {
+    return {
+      ...state,
+      value: {
+        ...state.value,
+        projects: action.payload,
+      },
+    };
+  }
+
+  return state;
+}
+
 function ReportModal({
   isOpen,
   activity,
@@ -70,62 +130,104 @@ function ReportModal({
   onSave,
   isSubmitting,
 }) {
+  const initialFormData = useMemo(() => createInitialReportData(activity, draftData), [activity, draftData]);
   const baselineFormData = useMemo(() => createInitialReportData(activity), [activity]);
-  const [formData, setFormData] = useState(() => createInitialReportData(activity, draftData));
+  const [formState, dispatchFormState] = useReducer(formStateReducer, initialFormData, createFormState);
+  const skipNextDraftSyncRef = useRef(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
   const isEditMode = Boolean(activity?.reportData);
   const hasSavedDraft = Boolean(draftData);
+  const formData = formState.value;
+
+  useEffect(() => {
+    dispatchFormState({ type: 'syncInitial', payload: initialFormData });
+  }, [initialFormData]);
 
   useEffect(() => {
     if (!isOpen || !activity || typeof onDraftChange !== 'function') {
       return;
     }
 
+    if (skipNextDraftSyncRef.current) {
+      skipNextDraftSyncRef.current = false;
+      return;
+    }
+
     const currentSnapshot = JSON.stringify(formData);
-    const baselineSnapshot = JSON.stringify(baselineFormData);
+    const baselineSnapshot = JSON.stringify(initialFormData);
     onDraftChange(activity.id, currentSnapshot === baselineSnapshot ? null : formData);
-  }, [activity, baselineFormData, formData, isOpen, onDraftChange]);
+  }, [activity, formData, initialFormData, isOpen, onDraftChange]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !isSubmitting && !isDiscarding) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isDiscarding, isOpen, isSubmitting, onClose]);
 
   if (!isOpen || !activity) {
     return null;
   }
 
   function handleOverlayClick(event) {
-    if (event.target === event.currentTarget) {
+    if (event.target === event.currentTarget && !isSubmitting && !isDiscarding) {
       onClose();
     }
   }
 
   function handleChange(event) {
     const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    dispatchFormState({ type: 'patch', payload: { [name]: value } });
   }
 
   function handleProjectChange(index, value) {
-    setFormData((prev) => ({
-      ...prev,
-      projects: prev.projects.map((project, projectIndex) => (
+    dispatchFormState({
+      type: 'updateProjects',
+      payload: formData.projects.map((project, projectIndex) => (
         projectIndex === index ? value : project
       )),
-    }));
+    });
   }
 
   function handleAddProject() {
-    setFormData((prev) => ({
-      ...prev,
-      projects: [...prev.projects, ''],
-    }));
+    dispatchFormState({
+      type: 'updateProjects',
+      payload: [...formData.projects, ''],
+    });
   }
 
   function handleRemoveProject(index) {
-    setFormData((prev) => ({
-      ...prev,
-      projects: prev.projects.filter((_, projectIndex) => projectIndex !== index),
-    }));
+    dispatchFormState({
+      type: 'updateProjects',
+      payload: formData.projects.filter((_, projectIndex) => projectIndex !== index),
+    });
   }
 
-  function handleDiscardDraft() {
-    setFormData(baselineFormData);
-    onDiscardDraft?.(activity.id);
+  async function handleDiscardDraft() {
+    if (typeof onDiscardDraft !== 'function' || isDiscarding || isSubmitting) {
+      return;
+    }
+
+    setIsDiscarding(true);
+
+    try {
+      const result = await onDiscardDraft(activity.id);
+
+      if (result?.success !== false) {
+        skipNextDraftSyncRef.current = true;
+        dispatchFormState({ type: 'replace', payload: baselineFormData });
+      }
+    } finally {
+      setIsDiscarding(false);
+    }
   }
 
   async function handleSubmit(event) {
@@ -317,7 +419,7 @@ function ReportModal({
           </div>
 
           <div className="modal-buttons">
-            <button type="button" className="btn btn-cancel" onClick={onClose} disabled={isSubmitting}>
+            <button type="button" className="btn btn-cancel" onClick={onClose} disabled={isSubmitting || isDiscarding}>
               Отмена
             </button>
             {hasSavedDraft && (
@@ -325,12 +427,12 @@ function ReportModal({
                 type="button"
                 className="btn btn-edit"
                 onClick={handleDiscardDraft}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isDiscarding}
               >
-                Очистить черновик
+                {isDiscarding ? 'Очищаем...' : 'Очистить черновик'}
               </button>
             )}
-            <button type="submit" className="btn btn-save" disabled={isSubmitting}>
+            <button type="submit" className="btn btn-save" disabled={isSubmitting || isDiscarding}>
               {isSubmitting ? 'Сохранение...' : 'Сохранить отчет'}
             </button>
           </div>

@@ -244,6 +244,7 @@ export async function listUsersForTeamPanel({ role, userId }) {
         join app_users u on u.id = h.employee_user_id
         where h.manager_user_id = $1
           and u.is_active = true
+          and u.role = 'employee'
         order by u.display_name asc, u.email asc
       `,
       [normalizedUserId],

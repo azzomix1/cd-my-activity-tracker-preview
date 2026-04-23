@@ -467,10 +467,18 @@ function App() {
 
   const handleReportDraftDiscard = async (activityId) => {
     if (!activityId) {
-      return;
+      return { success: false, error: 'Activity id is required.' };
     }
 
-    await discardDraft(activityId);
+    const result = await discardDraft(activityId);
+
+    if (!result.success) {
+      setActionError(result.error || 'Не удалось удалить черновик отчета.');
+      return result;
+    }
+
+    setActionError('');
+    return result;
   };
 
   /**

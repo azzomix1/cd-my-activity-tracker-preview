@@ -79,6 +79,7 @@ export async function fetchTeamSummary({ startDate = '', endDate = '', employeeU
     overview: payload.overview && typeof payload.overview === 'object' ? payload.overview : {},
     employees: Array.isArray(payload.employees) ? payload.employees : [],
     projects: Array.isArray(payload.projects) ? payload.projects : [],
-    reports: Array.isArray(payload.reports) ? payload.reports : [],
+    // Keep null when field is absent to let UI decide whether to use compatibility fallback.
+    reports: Array.isArray(payload.reports) ? payload.reports : null,
   };
 }
