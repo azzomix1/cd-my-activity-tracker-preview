@@ -360,6 +360,257 @@
   color: #aaa;
 }
 
+.cabinet-panel__scope-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cabinet__section-switch {
+  display: inline-flex;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.cabinet__section-switch-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #556f94;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cabinet__section-switch-btn--active {
+  background: rgba(0, 122, 255, 0.12);
+  border-color: rgba(0, 122, 255, 0.3);
+  color: #1661ad;
+}
+
+.cabinet-team-periods {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cabinet-team-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cabinet-team-controls__employee {
+  min-height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(170, 190, 226, 0.34);
+  background: rgba(255, 255, 255, 0.72);
+  color: #436489;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 10px;
+}
+
+.cabinet-team-periods__btn {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(170, 190, 226, 0.34);
+  background: rgba(255, 255, 255, 0.68);
+  color: #5b7395;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cabinet-team-periods__btn--active {
+  border-color: rgba(0, 122, 255, 0.34);
+  background: rgba(222, 238, 255, 0.9);
+  color: #1f609f;
+}
+
+.cabinet-team-table-wrap {
+  width: 100%;
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.44);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.cabinet-team-blocks {
+  display: grid;
+  gap: 12px;
+}
+
+.cabinet-team-block {
+  display: grid;
+  gap: 8px;
+}
+
+.cabinet-team-block__title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #5f7697;
+}
+
+.cabinet-team-reports {
+  display: grid;
+  gap: 10px;
+}
+
+.cabinet-team-report-card {
+  border: 1px solid rgba(255, 255, 255, 0.44);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+}
+
+.cabinet-team-report-card__header {
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.cabinet-team-report-card__header--open {
+  background: rgba(222, 238, 255, 0.35);
+}
+
+.cabinet-team-report-card__head-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.cabinet-team-report-card__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2b496f;
+}
+
+.cabinet-team-report-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #637ea2;
+}
+
+.cabinet-team-report-card__head-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #4f6f95;
+}
+
+.cabinet-team-report-card__arrow {
+  display: inline-flex;
+  transition: transform 0.2s ease;
+}
+
+.cabinet-team-report-card__arrow--open {
+  transform: rotate(180deg);
+}
+
+.cabinet-team-report-card__body {
+  border-top: 1px solid rgba(170, 190, 226, 0.3);
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.cabinet-team-report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cabinet-team-report-field {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(248, 251, 255, 0.86);
+  border: 1px solid rgba(186, 205, 232, 0.28);
+}
+
+.cabinet-team-report-field--full {
+  grid-column: 1 / -1;
+}
+
+.cabinet-team-report-field__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 800;
+  color: #7087a8;
+}
+
+.cabinet-team-report-field__value {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #2c4568;
+}
+
+.cabinet-team-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.cabinet-team-table th,
+.cabinet-team-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(170, 190, 226, 0.32);
+  text-align: left;
+  font-size: 13px;
+  color: #2f486b;
+}
+
+.cabinet-team-table th {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6a82a2;
+}
+
+.cabinet-team-table__open-btn {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 149, 214, 0.38);
+  background: rgba(222, 238, 255, 0.78);
+  color: #1f609f;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cabinet-team-table__open-btn:hover {
+  opacity: 0.88;
+}
+
 /* ── Фильтры-таблетки ── */
 .cabinet__attention {
   display: flex;
@@ -408,6 +659,62 @@
 
 .cabinet__reminder--neutral {
   color: #637997;
+}
+
+.cabinet__reminder--block {
+  width: 100%;
+}
+
+.cabinet-team-overview {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.cabinet-team-overview__card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(244, 248, 255, 0.54));
+  box-shadow: 0 8px 18px rgba(20, 28, 40, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.cabinet-team-overview__card--primary {
+  background: linear-gradient(180deg, rgba(232, 243, 255, 0.96), rgba(242, 248, 255, 0.9));
+}
+
+.cabinet-team-overview__card--success {
+  background: linear-gradient(180deg, rgba(232, 250, 238, 0.96), rgba(242, 252, 246, 0.9));
+}
+
+.cabinet-team-overview__card--danger {
+  background: linear-gradient(180deg, rgba(255, 237, 237, 0.96), rgba(255, 246, 246, 0.9));
+}
+
+.cabinet-team-overview__card--warning {
+  background: linear-gradient(180deg, rgba(255, 245, 223, 0.96), rgba(255, 250, 239, 0.9));
+}
+
+.cabinet-team-overview__card--accent {
+  background: linear-gradient(180deg, rgba(234, 242, 255, 0.96), rgba(244, 248, 255, 0.9));
+}
+
+.cabinet-team-overview__label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6a82a2;
+}
+
+.cabinet-team-overview__value {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  color: #24446c;
 }
 
 .cabinet__attention-grid {

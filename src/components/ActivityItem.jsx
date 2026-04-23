@@ -1,5 +1,16 @@
 import { Pencil, X } from 'lucide-react';
 
+function parseObjectChips(value) {
+  if (!value || typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 /**
  * Отрисовывает одну карточку активности.
  *
@@ -12,6 +23,7 @@ import { Pencil, X } from 'lucide-react';
  */
 function ActivityItem({ activity, onEdit, onDelete, editable = true }) {
   const eventTypeClass = activity.eventType === 'external' ? 'activity-item--external' : 'activity-item--internal';
+  const objectChips = parseObjectChips(activity.objects);
   
   return (
     <div className={`activity-item ${eventTypeClass}`}>
@@ -47,8 +59,17 @@ function ActivityItem({ activity, onEdit, onDelete, editable = true }) {
         <div className="activity-name">{activity.name}</div>
       )}
       
-      {activity.objects && (
-        <div className="activity-project">Объект: {activity.objects}</div>
+      {objectChips.length > 0 && (
+        <div className="activity-objects">
+          <span className="activity-objects__label">Объекты:</span>
+          <div className="activity-objects__chips">
+            {objectChips.map((objectName, index) => (
+              <span key={`${activity.id}-object-${index}`} className="activity-objects__chip">
+                {objectName}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

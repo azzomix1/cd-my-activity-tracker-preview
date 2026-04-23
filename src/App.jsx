@@ -877,6 +877,7 @@ function App() {
               <PersonalCabinet
                 activities={activitiesWithReports}
                 currentUser={session.user}
+                currentUserRole={session.role}
                 canManageHierarchy={canManageHierarchy}
                 onReportClick={handleReportModalOpen}
                 onAddClick={handleAddClick}

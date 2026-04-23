@@ -1702,14 +1702,36 @@ body[data-theme='midnight'] .view-nav__btn--active {
   line-height: 1.4;
 }
 
-.activity-project {
-  color: #f59e0b;
+.activity-objects {
+  margin-top: 10px;
+}
+
+.activity-objects__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #9f6b14;
+}
+
+.activity-objects__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.activity-objects__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.34);
+  background: rgba(245, 158, 11, 0.12);
+  color: #8b5d11;
   font-size: 12px;
-  margin-top: 8px;
-  padding: 6px 10px;
-  background: rgba(245, 158, 11, 0.1);
-  border-radius: 8px;
-  border: 1px solid rgba(245, 158, 11, 0.3);
   font-weight: 600;
 }
 
@@ -2249,9 +2271,14 @@ body[data-theme='midnight'] .view-nav__btn--active {
     padding: 3px 9px;
   }
 
-  .activity-project {
-    font-size: 12px;
-    margin-top: 10px;
+  .activity-objects__label {
+    font-size: 11px;
+  }
+
+  .activity-objects__chip {
+    font-size: 11px;
+    min-height: 22px;
+    padding: 3px 8px;
   }
 
   .activities-section h3 {

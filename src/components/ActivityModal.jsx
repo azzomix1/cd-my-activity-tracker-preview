@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import { toInputDateFormat, fromInputDateFormat } from '../utils/dateUtils';
+
+function splitObjects(value) {
+  if (!value || typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
 
 /**
  * Формирует начальные значения полей модального окна.
@@ -13,13 +25,14 @@ function createInitialFormData(activity, selectedDate) {
   if (activity) {
     const dateParts = activity.date.split('.');
     const dateStr = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+    const initialObjectItems = splitObjects(activity.objects || activity.project || '');
 
     return {
       date: dateStr,
       time: activity.time || '',
       name: activity.name || '',
       person: activity.person || '',
-      objects: activity.objects || activity.project || '',
+      objectItems: initialObjectItems.length > 0 ? initialObjectItems : [''],
       eventType: activity.eventType || 'internal',
       visibility: activity.visibility || 'public',
     };
@@ -30,7 +43,7 @@ function createInitialFormData(activity, selectedDate) {
     time: '',
     name: '',
     person: '',
-    objects: '',
+    objectItems: [''],
     eventType: 'internal',
     visibility: 'public',
   };
@@ -92,6 +105,36 @@ function ActivityModal({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleObjectChange = (index, value) => {
+    setValidationError('');
+    setFormData((prev) => ({
+      ...prev,
+      objectItems: prev.objectItems.map((item, itemIndex) => (
+        itemIndex === index ? value : item
+      )),
+    }));
+  };
+
+  const handleAddObject = () => {
+    setValidationError('');
+    setFormData((prev) => ({
+      ...prev,
+      objectItems: [...prev.objectItems, ''],
+    }));
+  };
+
+  const handleRemoveObject = (index) => {
+    setValidationError('');
+    setFormData((prev) => {
+      const nextObjectItems = prev.objectItems.filter((_, itemIndex) => itemIndex !== index);
+
+      return {
+        ...prev,
+        objectItems: nextObjectItems.length > 0 ? nextObjectItems : [''],
+      };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -108,7 +151,7 @@ function ActivityModal({
       time: formData.time,
       name: trimmedName,
       person: formData.person.trim(),
-      objects: formData.objects.trim(),
+      objects: formData.objectItems.map((item) => item.trim()).filter(Boolean).join(', '),
       eventType: formData.eventType,
       visibility: formData.visibility,
     };
@@ -198,17 +241,43 @@ function ActivityModal({
           </div>
 
           <div className="form-group">
-            <label htmlFor="objects">Объекты</label>
-            <input
-              type="text"
-              id="objects"
-              name="objects"
-              value={formData.objects}
-              onChange={handleChange}
-              placeholder="Название объекта"
-              list="objectsList"
-              disabled={isSubmitting}
-            />
+            <div className="report-modal__projects-header">
+              <label>Объекты</label>
+              <button
+                type="button"
+                className="btn btn-edit report-modal__project-add"
+                onClick={handleAddObject}
+                disabled={isSubmitting}
+              >
+                <Plus size={14} aria-hidden="true" />
+                Добавить объект
+              </button>
+            </div>
+
+            <div className="report-modal__projects-list">
+              {formData.objectItems.map((objectItem, index) => (
+                <div key={`object-${index}`} className="report-modal__project-row">
+                  <input
+                    type="text"
+                    value={objectItem}
+                    onChange={(event) => handleObjectChange(index, event.target.value)}
+                    placeholder={`Объект ${index + 1}`}
+                    list="objectsList"
+                    disabled={isSubmitting}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-cancel report-modal__project-remove"
+                    onClick={() => handleRemoveObject(index)}
+                    disabled={isSubmitting || formData.objectItems.length <= 1}
+                    aria-label={`Удалить объект ${index + 1}`}
+                  >
+                    <X size={14} aria-hidden="true" />
+                    Убрать
+                  </button>
+                </div>
+              ))}
+            </div>
             <datalist id="objectsList">
               {suggestions.objects.map((item, i) => (
                 <option key={i} value={item} />

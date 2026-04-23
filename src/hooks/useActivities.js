@@ -293,8 +293,22 @@ export function useActivities({ isAuthenticated = false } = {}) {
 
   const getUniqueValues = useCallback((field) => {
     const values = activities
-      .map((activity) => activity[field])
-      .filter((value) => value && value.trim());
+      .flatMap((activity) => {
+        const rawValue = activity[field];
+
+        if (!rawValue || !String(rawValue).trim()) {
+          return [];
+        }
+
+        if (field !== 'objects') {
+          return [String(rawValue).trim()];
+        }
+
+        return String(rawValue)
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+      });
 
     return [...new Set(values)].sort();
   }, [activities]);

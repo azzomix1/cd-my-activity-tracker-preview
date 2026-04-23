@@ -15,6 +15,7 @@ import {
   findUserByEmail,
   getAuthSessionByToken,
   listHierarchyLinks,
+  listUsersForTeamPanel,
   listUsersForAdminPanel,
   removeDirectReport,
   toSessionPayload,
@@ -28,6 +29,7 @@ import {
   upsertActivityReport,
   upsertActivityReportDraft,
 } from './lib/reportsRepository.js';
+import { getTeamSummary } from './lib/teamSummaryRepository.js';
 import { pool } from './lib/db.js';
 import { loadEnv } from './lib/loadEnv.js';
 
@@ -131,6 +133,23 @@ function requireHierarchyAdmin(request, response, next) {
   next();
 }
 
+function requireTeamSummaryAccess(request, response, next) {
+  if (!request.auth) {
+    response.status(401).json({ success: false, error: 'Требуется авторизация.' });
+    return;
+  }
+
+  const role = String(request.auth.role || '').trim().toLowerCase();
+  const allowed = role === 'administrator' || role === 'full_manager' || role === 'line_manager';
+
+  if (!allowed) {
+    response.status(403).json({ success: false, error: 'Недостаточно прав для просмотра сводки команды.' });
+    return;
+  }
+
+  next();
+}
+
 async function requirePersonAssignmentAccess(request, response, next) {
   if (!request.auth) {
     response.status(401).json({ success: false, error: 'Требуется авторизация.' });
@@ -228,6 +247,56 @@ app.get('/api/admin/users', requireAuth, requireHierarchyAdmin, async (_request,
     response.json({ success: true, users });
   } catch (error) {
     response.status(500).json({ success: false, error: error.message || 'Не удалось загрузить пользователей.' });
+  }
+});
+
+app.get('/api/team/users', requireAuth, async (request, response) => {
+  try {
+    const users = await listUsersForTeamPanel({
+      role: request.auth.role,
+      userId: request.auth.userId,
+    });
+
+    response.json({ success: true, users });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось загрузить сотрудников для обзора.' });
+  }
+});
+
+app.get('/api/team/summary', requireAuth, requireTeamSummaryAccess, async (request, response) => {
+  try {
+    const accessibleUsers = await listUsersForTeamPanel({
+      role: request.auth.role,
+      userId: request.auth.userId,
+    });
+    const requestedEmployeeUserId = String(request.query?.employeeUserId || '').trim();
+
+    if (requestedEmployeeUserId && !accessibleUsers.some((user) => user.id === requestedEmployeeUserId)) {
+      response.status(403).json({ success: false, error: 'Недостаточно прав для просмотра сводки по выбранному сотруднику.' });
+      return;
+    }
+
+    const scopedUsers = requestedEmployeeUserId
+      ? accessibleUsers.filter((user) => user.id === requestedEmployeeUserId)
+      : accessibleUsers;
+
+    const summary = await getTeamSummary({
+      employees: scopedUsers,
+      startDate: request.query?.startDate,
+      endDate: request.query?.endDate,
+    });
+
+    response.json({
+      success: true,
+      scope: summary.scope || {},
+      overview: summary.overview || {},
+      employees: Array.isArray(summary.employees) ? summary.employees : [],
+      projects: Array.isArray(summary.projects) ? summary.projects : [],
+      reports: Array.isArray(summary.reports) ? summary.reports : [],
+    });
+  } catch (error) {
+    const status = /format|less than or equal/i.test(String(error.message || '')) ? 400 : 500;
+    response.status(status).json({ success: false, error: error.message || 'Не удалось загрузить сводку команды.' });
   }
 });
 

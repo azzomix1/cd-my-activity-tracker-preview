@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowUp, BellRing, ChevronDown, CircleAlert, Clock3, Fil
 import { getActivityAudienceLabel, isPrivateActivity, isPublicActivity } from '../auth/accessPolicy';
 import AdminHierarchyPanel from './AdminHierarchyPanel';
 import PastEventsPanel from './PastEventsPanel';
+import { fetchTeamSummary, fetchTeamUsers } from '../services/teamApi';
 import { MONTHS, WEEKDAYS, getCalendarData, isToday } from '../utils/dateUtils';
 import './PersonalCabinet.css';
 
@@ -12,6 +13,41 @@ const FILTERS = [
   { key: 'public',  label: 'Только публичные' },
   { key: 'split',   label: 'Два столбца' },
 ];
+
+const SUPERVISOR_ROLES = new Set(['line_manager', 'full_manager', 'administrator']);
+const EMPLOYEE_SCOPE_VALUES = {
+  SELF: 'self',
+  TEAM: 'team',
+};
+const CABINET_SECTIONS = {
+  SCHEDULE: 'schedule',
+  TEAM: 'team',
+};
+const TEAM_SUMMARY_PERIODS = [
+  { key: 'all', label: 'Все время' },
+  { key: 'today', label: 'Сегодня' },
+  { key: 'week', label: '7 дней' },
+  { key: 'month', label: 'Месяц' },
+];
+
+const EMPTY_TEAM_SUMMARY = {
+  scope: {
+    startDate: '',
+    endDate: '',
+    employeesCount: 0,
+  },
+  overview: {
+    totalActivities: 0,
+    completedReports: 0,
+    missingReports: 0,
+    draftReports: 0,
+    notificationsTotal: 0,
+    telegramSubscriptionsTotal: 0,
+  },
+  employees: [],
+  projects: [],
+  reports: [],
+};
 
 function getDateSortKey(dateStr) {
   if (!dateStr) return '';
@@ -33,6 +69,34 @@ function getRelativeDayKey(offset = 0) {
 
 function toDateString(year, month, day) {
   return `${String(day).padStart(2, '0')}.${String(month + 1).padStart(2, '0')}.${year}`;
+}
+
+function toIsoDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function resolveTeamSummaryPeriodRange(periodKey) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (periodKey === 'today') {
+    const todayIso = toIsoDate(today);
+    return { startDate: todayIso, endDate: todayIso };
+  }
+
+  if (periodKey === 'week') {
+    const start = new Date(today);
+    start.setDate(today.getDate() - 6);
+    return { startDate: toIsoDate(start), endDate: toIsoDate(today) };
+  }
+
+  if (periodKey === 'month') {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return { startDate: toIsoDate(start), endDate: toIsoDate(end) };
+  }
+
+  return { startDate: '', endDate: '' };
 }
 
 function pluralize(count, one, few, many) {
@@ -109,6 +173,44 @@ function buildSessionAliases(currentUser) {
   }
 
   return aliases;
+}
+
+function buildUserAliases(user) {
+  const aliases = new Set();
+  const displayName = String(user?.displayName || '').trim().toLowerCase();
+  const email = String(user?.email || '').trim().toLowerCase();
+
+  if (displayName) {
+    aliases.add(displayName);
+  }
+
+  if (email) {
+    aliases.add(email);
+
+    const atIndex = email.indexOf('@');
+    if (atIndex > 0) {
+      aliases.add(email.slice(0, atIndex));
+    }
+  }
+
+  return aliases;
+}
+
+function activityBelongsToUser(activity, user) {
+  const activityEmployeeUserId = String(activity?.employeeUserId || '').trim();
+  const userId = String(user?.id || '').trim();
+
+  if (activityEmployeeUserId && userId) {
+    return activityEmployeeUserId === userId;
+  }
+
+  const activityPerson = String(activity?.person || '').trim().toLowerCase();
+
+  if (!activityPerson) {
+    return false;
+  }
+
+  return buildUserAliases(user).has(activityPerson);
 }
 
 /**
@@ -333,7 +435,7 @@ function CabinetEventCard({ activity, onEdit, onDelete, onReportClick, showRepor
  * @param {(id: string) => void} [props.onDelete] Удаление мероприятия.
  * @returns {JSX.Element}
  */
-function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReportClick, onAddClick, onEdit, onDelete }) {
+function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHierarchy, onReportClick, onAddClick, onEdit, onDelete }) {
   const todayKey = getTodayKey();
   const tomorrowKey = getRelativeDayKey(1);
   const today = useMemo(() => new Date(), []);
@@ -341,6 +443,7 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
   const upcomingSectionRef = useRef(null);
   const hierarchyDropdownRef = useRef(null);
   const currentPerson = String(currentUser?.displayName || currentUser?.email || '').trim();
+  const canInspectEmployees = SUPERVISOR_ROLES.has(String(currentUserRole || '').trim());
   const sessionAliases = useMemo(() => buildSessionAliases(currentUser), [currentUser]);
 
   const [filter, setFilter]               = useState('all');
@@ -351,10 +454,343 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
   const [selectedDateFilter, setSelectedDateFilter] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const [teamUsers, setTeamUsers] = useState([]);
+  const [isTeamUsersLoading, setIsTeamUsersLoading] = useState(false);
+  const [teamUsersError, setTeamUsersError] = useState('');
+  const [teamSummary, setTeamSummary] = useState(EMPTY_TEAM_SUMMARY);
+  const [isTeamSummaryLoading, setIsTeamSummaryLoading] = useState(false);
+  const [teamSummaryError, setTeamSummaryError] = useState('');
+  const [teamSummaryPeriod, setTeamSummaryPeriod] = useState('all');
+  const [employeeScope, setEmployeeScope] = useState(EMPLOYEE_SCOPE_VALUES.SELF);
+  const [teamSummaryEmployeeUserId, setTeamSummaryEmployeeUserId] = useState('');
+  const [expandedTeamReportId, setExpandedTeamReportId] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [activeCabinetSection, setActiveCabinetSection] = useState(CABINET_SECTIONS.SCHEDULE);
   const [prevCurrentPerson, setPrevCurrentPerson] = useState(currentPerson);
 
-  if (prevCurrentPerson !== currentPerson) {
-    setPrevCurrentPerson(currentPerson);
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!canInspectEmployees) {
+      setTeamUsers([]);
+      setTeamUsersError('');
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    async function loadTeamUsers() {
+      setIsTeamUsersLoading(true);
+      setTeamUsersError('');
+
+      try {
+        const users = await fetchTeamUsers();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setTeamUsers(users);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setTeamUsers([]);
+        setTeamUsersError(error.message || 'Не удалось загрузить сотрудников для обзора.');
+      } finally {
+        if (isMounted) {
+          setIsTeamUsersLoading(false);
+        }
+      }
+    }
+
+    loadTeamUsers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [canInspectEmployees]);
+
+  const teamSummaryPeriodRange = useMemo(
+    () => resolveTeamSummaryPeriodRange(teamSummaryPeriod),
+    [teamSummaryPeriod],
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!canInspectEmployees || activeCabinetSection !== CABINET_SECTIONS.TEAM) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    async function loadTeamSummary() {
+      setIsTeamSummaryLoading(true);
+      setTeamSummaryError('');
+
+      try {
+        const nextSummary = await fetchTeamSummary({
+          ...teamSummaryPeriodRange,
+          employeeUserId: teamSummaryEmployeeUserId,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setTeamSummary(nextSummary);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setTeamSummary(EMPTY_TEAM_SUMMARY);
+        setTeamSummaryError(error.message || 'Не удалось загрузить сводку команды.');
+      } finally {
+        if (isMounted) {
+          setIsTeamSummaryLoading(false);
+        }
+      }
+    }
+
+    loadTeamSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeCabinetSection, canInspectEmployees, teamSummaryEmployeeUserId, teamSummaryPeriodRange]);
+
+  useEffect(() => {
+    if (!canInspectEmployees) {
+      return;
+    }
+
+    if (employeeScope === EMPLOYEE_SCOPE_VALUES.TEAM) {
+      setSelectedEmployeeId('');
+    }
+  }, [canInspectEmployees, employeeScope]);
+
+  useEffect(() => {
+    if (!teamSummaryEmployeeUserId) {
+      return;
+    }
+
+    if (!teamUsers.some((user) => user.id === teamSummaryEmployeeUserId)) {
+      setTeamSummaryEmployeeUserId('');
+    }
+  }, [teamSummaryEmployeeUserId, teamUsers]);
+
+  const selectedEmployee = useMemo(
+    () => teamUsers.find((user) => user.id === selectedEmployeeId) || null,
+    [selectedEmployeeId, teamUsers],
+  );
+
+  const teamSummaryRows = useMemo(
+    () => Array.isArray(teamSummary.employees) ? teamSummary.employees : [],
+    [teamSummary.employees],
+  );
+
+  const teamProjectsRows = useMemo(
+    () => Array.isArray(teamSummary.projects) ? teamSummary.projects : [],
+    [teamSummary.projects],
+  );
+
+  const teamReportRows = useMemo(() => {
+    if (Array.isArray(teamSummary.reports) && teamSummary.reports.length > 0) {
+      return teamSummary.reports;
+    }
+
+    const toDateKey = (dateString) => {
+      const normalized = getDateSortKey(dateString);
+      return normalized || '';
+    };
+
+    const startDateKey = String(teamSummaryPeriodRange.startDate || '').trim();
+    const endDateKey = String(teamSummaryPeriodRange.endDate || '').trim();
+
+    const scopedActivities = activities.filter((activity) => {
+      if (!activity?.reportData || !activity?.reportFilled) {
+        return false;
+      }
+
+      const activityDateKey = toDateKey(activity.date);
+
+      if (!activityDateKey) {
+        return false;
+      }
+
+      if (startDateKey && activityDateKey < startDateKey) {
+        return false;
+      }
+
+      if (endDateKey && activityDateKey > endDateKey) {
+        return false;
+      }
+
+      if (teamSummaryEmployeeUserId) {
+        return String(activity.employeeUserId || '').trim() === teamSummaryEmployeeUserId;
+      }
+
+      return teamUsers.some((user) => activityBelongsToUser(activity, user));
+    });
+
+    return scopedActivities
+      .sort((left, right) => {
+        const dateCompare = toDateKey(right.date).localeCompare(toDateKey(left.date));
+
+        if (dateCompare !== 0) {
+          return dateCompare;
+        }
+
+        return String(right.time || '').localeCompare(String(left.time || ''));
+      })
+      .map((activity) => ({
+        activityId: String(activity.id || ''),
+        employeeUserId: String(activity.employeeUserId || ''),
+        employeeDisplayName: String(activity.person || ''),
+        employeeEmail: '',
+        eventDate: String(activity.date || ''),
+        eventTime: String(activity.time || ''),
+        activityName: String(activity.name || ''),
+        person: String(activity.person || ''),
+        objects: String(activity.objects || ''),
+        eventType: String(activity.eventType || 'internal'),
+        visibility: String(activity.visibility || 'public'),
+        reportData: activity.reportData,
+        summary: {
+          meetingContent: String(activity.reportData?.meetingContent || ''),
+          meetingFormat: String(activity.reportData?.meetingFormat || ''),
+          notificationsCount: Number(activity.reportData?.notificationsCount || 0) || 0,
+          telegramSubscriptionsCount: Number(activity.reportData?.telegramSubscriptionsCount || 0) || 0,
+        },
+      }));
+  }, [activities, teamSummary.reports, teamSummaryEmployeeUserId, teamSummaryPeriodRange.endDate, teamSummaryPeriodRange.startDate, teamUsers]);
+
+  useEffect(() => {
+    if (!expandedTeamReportId) {
+      return;
+    }
+
+    if (!teamReportRows.some((item) => item.activityId === expandedTeamReportId)) {
+      setExpandedTeamReportId('');
+    }
+  }, [expandedTeamReportId, teamReportRows]);
+
+  const teamOverviewCards = useMemo(() => {
+    const overview = teamSummary.overview || EMPTY_TEAM_SUMMARY.overview;
+    const employeesCount = Number(teamSummary.scope?.employeesCount || 0);
+
+    return [
+      {
+        key: 'employees',
+        label: 'Сотрудники',
+        value: employeesCount,
+        tone: 'neutral',
+      },
+      {
+        key: 'activities',
+        label: 'Мероприятия',
+        value: Number(overview.totalActivities || 0),
+        tone: 'primary',
+      },
+      {
+        key: 'reports',
+        label: 'Отчеты',
+        value: Number(overview.completedReports || 0),
+        tone: 'success',
+      },
+      {
+        key: 'missing',
+        label: 'Без отчета',
+        value: Number(overview.missingReports || 0),
+        tone: 'danger',
+      },
+      {
+        key: 'drafts',
+        label: 'Черновики',
+        value: Number(overview.draftReports || 0),
+        tone: 'warning',
+      },
+      {
+        key: 'results',
+        label: 'Уведомления',
+        value: Number(overview.notificationsTotal || 0),
+        tone: 'accent',
+      },
+    ];
+  }, [teamSummary.overview, teamSummary.scope]);
+
+  const myActivities = useMemo(
+    () => activities.filter((activity) => {
+      const employeeUserId = String(activity.employeeUserId || '').trim();
+      const currentUserId = String(currentUser?.id || '').trim();
+
+      if (employeeUserId && currentUserId) {
+        return employeeUserId === currentUserId;
+      }
+
+      const activityPerson = String(activity.person || '').trim().toLowerCase();
+      return activityPerson && sessionAliases.has(activityPerson);
+    }),
+    [activities, currentUser, sessionAliases],
+  );
+
+  const teamActivities = useMemo(() => {
+    if (!canInspectEmployees || teamUsers.length === 0) {
+      return [];
+    }
+
+    return activities.filter((activity) => {
+      for (const user of teamUsers) {
+        if (activityBelongsToUser(activity, user)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+  }, [activities, canInspectEmployees, teamUsers]);
+
+  const scopedActivities = useMemo(() => {
+    if (!canInspectEmployees) {
+      return myActivities;
+    }
+
+    if (employeeScope === EMPLOYEE_SCOPE_VALUES.SELF) {
+      return myActivities;
+    }
+
+    if (!selectedEmployeeId) {
+      return teamActivities;
+    }
+
+    if (!selectedEmployee) {
+      return [];
+    }
+
+    return activities.filter((activity) => activityBelongsToUser(activity, selectedEmployee));
+  }, [activities, canInspectEmployees, employeeScope, myActivities, selectedEmployee, selectedEmployeeId, teamActivities]);
+
+  const selectedPersonLabel = useMemo(() => {
+    if (!canInspectEmployees || employeeScope === EMPLOYEE_SCOPE_VALUES.SELF) {
+      return currentPerson;
+    }
+
+    if (employeeScope === EMPLOYEE_SCOPE_VALUES.TEAM && !selectedEmployeeId) {
+      return 'Все сотрудники';
+    }
+
+    if (selectedEmployee) {
+      return String(selectedEmployee.displayName || selectedEmployee.email || '').trim();
+    }
+
+    return currentPerson;
+  }, [canInspectEmployees, currentPerson, employeeScope, selectedEmployee, selectedEmployeeId]);
+
+  if (prevCurrentPerson !== selectedPersonLabel) {
+    setPrevCurrentPerson(selectedPersonLabel);
     setSelectedDateFilter('');
     setCalendarMonth(today.getMonth());
     setCalendarYear(today.getFullYear());
@@ -383,44 +819,28 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
 
   const pastSectionRef = useRef(null);
 
-  // --- Фильтрация по сотруднику ---
-  const myActivities = useMemo(
-    () => activities.filter((activity) => {
-      const employeeUserId = String(activity.employeeUserId || '').trim();
-      const currentUserId = String(currentUser?.id || '').trim();
-
-      if (employeeUserId && currentUserId) {
-        return employeeUserId === currentUserId;
-      }
-
-      const activityPerson = String(activity.person || '').trim().toLowerCase();
-      return activityPerson && sessionAliases.has(activityPerson);
-    }),
-    [activities, currentUser, sessionAliases],
-  );
-
   // --- Предстоящие (дата >= сегодня) ---
   const upcomingActivities = useMemo(
     () =>
-      myActivities
+      scopedActivities
         .filter((a) => getDateSortKey(a.date) >= todayKey)
         .sort((a, b) => {
           const dc = getDateSortKey(a.date).localeCompare(getDateSortKey(b.date));
           return dc !== 0 ? dc : (a.time || '').localeCompare(b.time || '');
         }),
-    [myActivities, todayKey],
+    [scopedActivities, todayKey],
   );
 
   // --- Прошедшие (дата < сегодня), для панели слева ---
   const pastActivities = useMemo(
     () =>
-      myActivities
+      scopedActivities
         .filter((a) => getDateSortKey(a.date) < todayKey)
         .sort((a, b) => {
           const dc = getDateSortKey(b.date).localeCompare(getDateSortKey(a.date));
           return dc !== 0 ? dc : (b.time || '').localeCompare(a.time || '');
         }),
-    [myActivities, todayKey],
+    [scopedActivities, todayKey],
   );
 
   const pastFilledActivities = useMemo(
@@ -444,7 +864,7 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
   );
 
   const activitiesWithMissingFields = useMemo(
-    () => myActivities
+    () => scopedActivities
       .map((activity) => ({
         ...activity,
         missingFields: getMissingRequiredActivityFields(activity),
@@ -454,7 +874,7 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
         const dateComparison = getDateSortKey(left.date).localeCompare(getDateSortKey(right.date));
         return dateComparison !== 0 ? dateComparison : (left.time || '').localeCompare(right.time || '');
       }),
-    [myActivities],
+    [scopedActivities],
   );
 
   const reportDraftActivities = useMemo(
@@ -707,6 +1127,16 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
     }
   }, [handleFocusDate, todayActivities, tomorrowActivities]);
 
+  const handleOpenEmployeeWorkspace = useCallback((employeeUserId) => {
+    setEmployeeScope(EMPLOYEE_SCOPE_VALUES.TEAM);
+    setSelectedEmployeeId(employeeUserId);
+    setSelectedDateFilter('');
+    setActiveCabinetSection(CABINET_SECTIONS.SCHEDULE);
+    window.setTimeout(() => {
+      upcomingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  }, []);
+
   return (
     <div className="cabinet">
       {/* Панель прошедших мероприятий */}
@@ -751,7 +1181,7 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
               <div className="cabinet__hero-copy">
                 <div className="cabinet__hero-eyebrow">Личный кабинет</div>
                 <h2 className="cabinet__hero-title">
-                  {currentPerson || 'Кабинет сотрудника'}
+                  {selectedPersonLabel || 'Кабинет сотрудника'}
                 </h2>
               </div>
 
@@ -808,6 +1238,12 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
               </div>
 
               <div className="cabinet__reminders">
+                {teamUsersError && (
+                  <div className="cabinet__reminder cabinet__reminder--danger">
+                    <BellRing size={14} aria-hidden="true" />
+                    <span>{teamUsersError}</span>
+                  </div>
+                )}
                 {reminderItems.length === 0 ? (
                   <div className="cabinet__reminder cabinet__reminder--neutral">
                     <BellRing size={14} aria-hidden="true" />
@@ -905,6 +1341,264 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
           </section>
 
           <div className="cabinet__events">
+            {canInspectEmployees && (
+              <div className="cabinet__section-switch" role="tablist" aria-label="Режим кабинета">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeCabinetSection === CABINET_SECTIONS.SCHEDULE}
+                  className={`cabinet__section-switch-btn${activeCabinetSection === CABINET_SECTIONS.SCHEDULE ? ' cabinet__section-switch-btn--active' : ''}`}
+                  onClick={() => setActiveCabinetSection(CABINET_SECTIONS.SCHEDULE)}
+                >
+                  Мероприятия
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeCabinetSection === CABINET_SECTIONS.TEAM}
+                  className={`cabinet__section-switch-btn${activeCabinetSection === CABINET_SECTIONS.TEAM ? ' cabinet__section-switch-btn--active' : ''}`}
+                  onClick={() => setActiveCabinetSection(CABINET_SECTIONS.TEAM)}
+                >
+                  Команда
+                </button>
+              </div>
+            )}
+
+            {activeCabinetSection === CABINET_SECTIONS.TEAM && canInspectEmployees ? (
+              <section className="cabinet-panel cabinet-panel--team">
+                <div className="cabinet-panel__header">
+                  <div>
+                    <h3 className="cabinet__section-title">Команда: мероприятия и отчеты</h3>
+                    <div className="cabinet__section-hint">Сводка по сотрудникам и быстрый переход к их расписанию</div>
+                  </div>
+                </div>
+
+                <div className="cabinet-team-controls">
+                  <div className="cabinet-team-periods" role="group" aria-label="Период сводки команды">
+                    {TEAM_SUMMARY_PERIODS.map((period) => (
+                      <button
+                        key={period.key}
+                        type="button"
+                        className={`cabinet-team-periods__btn${teamSummaryPeriod === period.key ? ' cabinet-team-periods__btn--active' : ''}`}
+                        onClick={() => setTeamSummaryPeriod(period.key)}
+                      >
+                        {period.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <select
+                    className="cabinet-team-controls__employee"
+                    value={teamSummaryEmployeeUserId}
+                    onChange={(event) => setTeamSummaryEmployeeUserId(event.target.value)}
+                    disabled={isTeamUsersLoading}
+                    aria-label="Фильтр сводки по сотруднику"
+                  >
+                    <option value="">Все сотрудники</option>
+                    {teamUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.displayName || user.email || user.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {teamSummaryError && (
+                  <div className="cabinet__reminder cabinet__reminder--danger cabinet__reminder--block">
+                    <BellRing size={14} aria-hidden="true" />
+                    <span>{teamSummaryError}</span>
+                  </div>
+                )}
+
+                <div className="cabinet-team-overview">
+                  {teamOverviewCards.map((card) => (
+                    <div key={card.key} className={`cabinet-team-overview__card cabinet-team-overview__card--${card.tone}`}>
+                      <span className="cabinet-team-overview__label">{card.label}</span>
+                      <span className="cabinet-team-overview__value">{card.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {isTeamSummaryLoading ? (
+                  <div className="no-activities">Загружаем сводку команды...</div>
+                ) : teamSummaryRows.length === 0 ? (
+                  <div className="no-activities">Нет сотрудников для обзора.</div>
+                ) : (
+                  <div className="cabinet-team-blocks">
+                    <div className="cabinet-team-block">
+                      <div className="cabinet-team-block__title">Сотрудники</div>
+                      <div className="cabinet-team-table-wrap">
+                        <table className="cabinet-team-table">
+                          <thead>
+                            <tr>
+                              <th>Сотрудник</th>
+                              <th>Всего</th>
+                              <th>Отчеты заполнены</th>
+                              <th>Без отчета</th>
+                              <th>Черновики</th>
+                              <th>Уведомления</th>
+                              <th>Подписки</th>
+                              <th>Закрытие</th>
+                              <th aria-label="Действие"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {teamSummaryRows.map((row) => (
+                              <tr key={row.employeeUserId}>
+                                <td>{row.displayName || row.email || row.employeeUserId}</td>
+                                <td>{row.totalActivities}</td>
+                                <td>{row.completedReports}</td>
+                                <td>{row.missingReports}</td>
+                                <td>{row.draftReports}</td>
+                                <td>{row.notificationsTotal}</td>
+                                <td>{row.telegramSubscriptionsTotal}</td>
+                                <td>{row.completionRate}%</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="cabinet-team-table__open-btn"
+                                    onClick={() => handleOpenEmployeeWorkspace(row.employeeUserId)}
+                                  >
+                                    Открыть
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="cabinet-team-block">
+                      <div className="cabinet-team-block__title">Проекты</div>
+                      {teamProjectsRows.length === 0 ? (
+                        <div className="no-activities">За выбранный период проекты не найдены.</div>
+                      ) : (
+                        <div className="cabinet-team-table-wrap">
+                          <table className="cabinet-team-table">
+                            <thead>
+                              <tr>
+                                <th>Проект</th>
+                                <th>Отчеты</th>
+                                <th>Сотрудники</th>
+                                <th>Уведомления</th>
+                                <th>Подписки</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {teamProjectsRows.map((row) => (
+                                <tr key={row.name}>
+                                  <td>{row.name}</td>
+                                  <td>{row.reportsCount}</td>
+                                  <td>{row.employeesCount}</td>
+                                  <td>{row.notificationsTotal}</td>
+                                  <td>{row.telegramSubscriptionsTotal}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="cabinet-team-block">
+                      <div className="cabinet-team-block__title">Отчеты</div>
+                      {teamReportRows.length === 0 ? (
+                        <div className="no-activities">За выбранный период отчеты не найдены.</div>
+                      ) : (
+                        <div className="cabinet-team-reports">
+                          {teamReportRows.map((reportItem) => {
+                            const isExpanded = expandedTeamReportId === reportItem.activityId;
+                            const projects = Array.isArray(reportItem.reportData?.projects)
+                              ? reportItem.reportData.projects.filter(Boolean)
+                              : [];
+
+                            return (
+                              <article key={reportItem.activityId} className="cabinet-team-report-card">
+                                <button
+                                  type="button"
+                                  className={`cabinet-team-report-card__header${isExpanded ? ' cabinet-team-report-card__header--open' : ''}`}
+                                  onClick={() => setExpandedTeamReportId((current) => (
+                                    current === reportItem.activityId ? '' : reportItem.activityId
+                                  ))}
+                                >
+                                  <div className="cabinet-team-report-card__head-main">
+                                    <div className="cabinet-team-report-card__title">{reportItem.activityName || 'Без названия'}</div>
+                                    <div className="cabinet-team-report-card__meta">
+                                      <span>{reportItem.employeeDisplayName || reportItem.person || 'Без сотрудника'}</span>
+                                      <span>{reportItem.eventDate}{reportItem.eventTime ? ` · ${reportItem.eventTime}` : ''}</span>
+                                    </div>
+                                  </div>
+                                  <div className="cabinet-team-report-card__head-summary">
+                                    <span>Ув: {reportItem.summary?.notificationsCount ?? 0}</span>
+                                    <span>Подп: {reportItem.summary?.telegramSubscriptionsCount ?? 0}</span>
+                                    <span className={`cabinet-team-report-card__arrow${isExpanded ? ' cabinet-team-report-card__arrow--open' : ''}`}>
+                                      <ChevronDown size={16} aria-hidden="true" />
+                                    </span>
+                                  </div>
+                                </button>
+
+                                {isExpanded && (
+                                  <div className="cabinet-team-report-card__body">
+                                    <div className="cabinet-team-report-grid">
+                                      <div className="cabinet-team-report-field">
+                                        <span className="cabinet-team-report-field__label">Сотрудник</span>
+                                        <span className="cabinet-team-report-field__value">
+                                          {reportItem.reportData?.employeeName || reportItem.employeeDisplayName || reportItem.person || '-'}
+                                        </span>
+                                      </div>
+                                      <div className="cabinet-team-report-field">
+                                        <span className="cabinet-team-report-field__label">Дата</span>
+                                        <span className="cabinet-team-report-field__value">{reportItem.reportData?.date || reportItem.eventDate || '-'}</span>
+                                      </div>
+                                      <div className="cabinet-team-report-field">
+                                        <span className="cabinet-team-report-field__label">Время</span>
+                                        <span className="cabinet-team-report-field__value">{reportItem.reportData?.time || reportItem.eventTime || '-'}</span>
+                                      </div>
+                                      <div className="cabinet-team-report-field">
+                                        <span className="cabinet-team-report-field__label">Формат</span>
+                                        <span className="cabinet-team-report-field__value">{reportItem.reportData?.meetingFormat || '-'}</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="cabinet-team-report-field cabinet-team-report-field--full">
+                                      <span className="cabinet-team-report-field__label">Содержание встречи</span>
+                                      <span className="cabinet-team-report-field__value">{reportItem.reportData?.meetingContent || '-'}</span>
+                                    </div>
+
+                                    <div className="cabinet-team-report-grid">
+                                      <div className="cabinet-team-report-field">
+                                        <span className="cabinet-team-report-field__label">Уведомлений</span>
+                                        <span className="cabinet-team-report-field__value">{reportItem.reportData?.notificationsCount || '0'}</span>
+                                      </div>
+                                      <div className="cabinet-team-report-field">
+                                        <span className="cabinet-team-report-field__label">Подписок Telegram</span>
+                                        <span className="cabinet-team-report-field__value">{reportItem.reportData?.telegramSubscriptionsCount || '0'}</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="cabinet-team-report-field cabinet-team-report-field--full">
+                                      <span className="cabinet-team-report-field__label">Проекты</span>
+                                      <span className="cabinet-team-report-field__value">{projects.length > 0 ? projects.join(', ') : '-'}</span>
+                                    </div>
+
+                                    <div className="cabinet-team-report-field cabinet-team-report-field--full">
+                                      <span className="cabinet-team-report-field__label">Комментарий</span>
+                                      <span className="cabinet-team-report-field__value">{reportItem.reportData?.comment || '-'}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </article>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </section>
+            ) : (
+              <>
             <section className="cabinet__attention" ref={attentionSectionRef}>
               <div className="cabinet__section-header">
                 <div>
@@ -933,6 +1627,34 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
                   <div className="cabinet__section-hint">Основная зона со списком, режимами и фильтром по дню</div>
                 </div>
                 <div className="cabinet-panel__header-meta">
+                  {canInspectEmployees && (
+                    <div className="cabinet-panel__scope-controls">
+                      <select
+                        className="cabinet__person-select"
+                        value={employeeScope}
+                        onChange={(event) => setEmployeeScope(event.target.value)}
+                      >
+                        <option value={EMPLOYEE_SCOPE_VALUES.SELF}>Мои мероприятия</option>
+                        <option value={EMPLOYEE_SCOPE_VALUES.TEAM}>Мероприятия сотрудников</option>
+                      </select>
+
+                      {employeeScope === EMPLOYEE_SCOPE_VALUES.TEAM && (
+                        <select
+                          className="cabinet__person-select"
+                          value={selectedEmployeeId}
+                          onChange={(event) => setSelectedEmployeeId(event.target.value)}
+                          disabled={isTeamUsersLoading}
+                        >
+                          <option value="">Все сотрудники</option>
+                          {teamUsers.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.displayName || user.email || user.id}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
                   {selectedDateFilter && (
                     <div className="cabinet__selected-date">Дата: {selectedDateFilter}</div>
                   )}
@@ -1106,6 +1828,8 @@ function PersonalCabinet({ activities, currentUser, canManageHierarchy, onReport
                 </section>
               </div>
             </section>
+              </>
+            )}
           </div>
         </div>
       </div>
