@@ -8,6 +8,7 @@
     "dev": "vite",
     "api": "node server/index.js",
     "api:dev": "node --watch server/index.js",
+    "api:team-smoke": "node scripts/team-summary-smoke-test.mjs",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:seed-test-data": "node scripts/db-seed-test-data.mjs",
     "db:check-integrity": "node scripts/db-integrity-check.mjs",

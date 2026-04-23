@@ -250,7 +250,7 @@ app.get('/api/admin/users', requireAuth, requireHierarchyAdmin, async (_request,
   }
 });
 
-app.get('/api/team/users', requireAuth, async (request, response) => {
+app.get('/api/team/users', requireAuth, requireTeamSummaryAccess, async (request, response) => {
   try {
     const users = await listUsersForTeamPanel({
       role: request.auth.role,

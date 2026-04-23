@@ -466,7 +466,6 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
   const [expandedTeamReportId, setExpandedTeamReportId] = useState('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [activeCabinetSection, setActiveCabinetSection] = useState(CABINET_SECTIONS.SCHEDULE);
-  const [prevCurrentPerson, setPrevCurrentPerson] = useState(currentPerson);
 
   useEffect(() => {
     let isMounted = true;
@@ -474,6 +473,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
     if (!canInspectEmployees) {
       setTeamUsers([]);
       setTeamUsersError('');
+      setIsTeamUsersLoading(false);
       return () => {
         isMounted = false;
       };
@@ -521,6 +521,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
     let isMounted = true;
 
     if (!canInspectEmployees || activeCabinetSection !== CABINET_SECTIONS.TEAM) {
+      setIsTeamSummaryLoading(false);
       return () => {
         isMounted = false;
       };
@@ -564,13 +565,18 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
 
   useEffect(() => {
     if (!canInspectEmployees) {
-      return;
-    }
-
-    if (employeeScope === EMPLOYEE_SCOPE_VALUES.TEAM) {
+      setEmployeeScope(EMPLOYEE_SCOPE_VALUES.SELF);
       setSelectedEmployeeId('');
     }
-  }, [canInspectEmployees, employeeScope]);
+  }, [canInspectEmployees]);
+
+  const handleEmployeeScopeChange = useCallback((nextScope) => {
+    setEmployeeScope(nextScope);
+
+    if (nextScope !== EMPLOYEE_SCOPE_VALUES.TEAM) {
+      setSelectedEmployeeId('');
+    }
+  }, []);
 
   useEffect(() => {
     if (!teamSummaryEmployeeUserId) {
@@ -789,12 +795,18 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
     return currentPerson;
   }, [canInspectEmployees, currentPerson, employeeScope, selectedEmployee, selectedEmployeeId]);
 
-  if (prevCurrentPerson !== selectedPersonLabel) {
-    setPrevCurrentPerson(selectedPersonLabel);
+  const previousSelectedPersonLabelRef = useRef(selectedPersonLabel);
+
+  useEffect(() => {
+    if (previousSelectedPersonLabelRef.current === selectedPersonLabel) {
+      return;
+    }
+
+    previousSelectedPersonLabelRef.current = selectedPersonLabel;
     setSelectedDateFilter('');
     setCalendarMonth(today.getMonth());
     setCalendarYear(today.getFullYear());
-  }
+  }, [selectedPersonLabel, today]);
 
   useEffect(() => {
     if (!isHierarchyOpen) return undefined;
@@ -878,13 +890,13 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
   );
 
   const reportDraftActivities = useMemo(
-    () => myActivities
+    () => scopedActivities
       .filter((activity) => activity.reportHasDraft)
       .sort((left, right) => {
         const dateComparison = getDateSortKey(left.date).localeCompare(getDateSortKey(right.date));
         return dateComparison !== 0 ? dateComparison : (left.time || '').localeCompare(right.time || '');
       }),
-    [myActivities],
+    [scopedActivities],
   );
 
   const reminderItems = useMemo(() => {
@@ -1632,7 +1644,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                       <select
                         className="cabinet__person-select"
                         value={employeeScope}
-                        onChange={(event) => setEmployeeScope(event.target.value)}
+                        onChange={(event) => handleEmployeeScopeChange(event.target.value)}
                       >
                         <option value={EMPLOYEE_SCOPE_VALUES.SELF}>Мои мероприятия</option>
                         <option value={EMPLOYEE_SCOPE_VALUES.TEAM}>Мероприятия сотрудников</option>

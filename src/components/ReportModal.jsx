@@ -16,12 +16,26 @@ function toInputValue(dateString) {
   return `${parts[2]}-${parts[1]}-${parts[0]}`;
 }
 
+function normalizeDateForInput(dateString) {
+  const normalized = String(dateString || '').trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+
+  return toInputValue(normalized);
+}
+
 function createInitialReportData(activity, draftData = null) {
   const report = activity?.reportData;
 
   if (draftData) {
     return {
-      date: draftData.date || toInputValue(activity?.date),
+      date: normalizeDateForInput(draftData.date) || normalizeDateForInput(activity?.date),
       time: draftData.time || '',
       employeeName: draftData.employeeName || activity?.person || '',
       meetingContent: draftData.meetingContent || activity?.name || '',
@@ -34,7 +48,7 @@ function createInitialReportData(activity, draftData = null) {
   }
 
   return {
-    date: toInputValue(report?.date || activity?.date),
+    date: normalizeDateForInput(report?.date || activity?.date),
     time: report?.time || activity?.time || '',
     employeeName: report?.employeeName || activity?.person || '',
     meetingContent: report?.meetingContent || activity?.name || '',
