@@ -36,7 +36,7 @@ import { loadEnv } from './lib/loadEnv.js';
 loadEnv();
 
 const app = express();
-const port = Number(process.env.API_PORT || 8787);
+const port = Number(process.env.PORT || process.env.API_PORT || 8787);
 const configuredCorsOrigins = process.env.CORS_ORIGIN
   ?.split(',')
   .map((origin) => origin.trim())
