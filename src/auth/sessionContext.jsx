@@ -81,6 +81,21 @@ function readStoredSession() {
  * @param {{ children: import('react').ReactNode }} props
  * @returns {JSX.Element}
  */
+const DEV_MOCK_ROLE = import.meta.env.VITE_DEV_MOCK_USER;
+
+function buildDevMockSession() {
+  const role = Object.values(AUTH_ROLES).includes(DEV_MOCK_ROLE)
+    ? DEV_MOCK_ROLE
+    : AUTH_ROLES.ADMINISTRATOR;
+  return {
+    role,
+    user: { id: 'dev-mock', email: 'dev@local', displayName: 'Dev User' },
+    source: 'dev-mock',
+    issuedAt: null,
+    expiresAt: null,
+  };
+}
+
 export function AuthSessionProvider({ children }) {
   const [session, setSessionState] = useState(buildAnonymousSession);
   const [sessionStatus, setSessionStatus] = useState(SESSION_STATUSES.LOADING);
@@ -89,6 +104,13 @@ export function AuthSessionProvider({ children }) {
     let isMounted = true;
 
     async function bootstrapSession() {
+      if (import.meta.env.DEV && DEV_MOCK_ROLE) {
+        if (!isMounted) return;
+        setSessionState(buildDevMockSession());
+        setSessionStatus(SESSION_STATUSES.AUTHENTICATED);
+        return;
+      }
+
       const token = getAuthToken();
 
       if (!token) {

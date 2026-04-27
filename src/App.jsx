@@ -13,13 +13,18 @@ const PersonalCabinet = lazy(() => import('./components/PersonalCabinet'));
 const ReportModal = lazy(() => import('./components/ReportModal'));
 
 const THEMES = {
-  DARK: 'aurora',
-  LIGHT: 'midnight',
+  AURORA: 'aurora',
+  MIDNIGHT: 'midnight',
 };
 
 const LEGACY_THEME_ALIASES = {
-  light: THEMES.LIGHT,
-  dark: THEMES.DARK,
+  light: THEMES.MIDNIGHT,
+  dark: THEMES.AURORA,
+};
+
+const THEME_LABELS = {
+  [THEMES.AURORA]: 'Aurora',
+  [THEMES.MIDNIGHT]: 'Midnight',
 };
 
 const REPORTS_STORAGE_KEY = 'activity-tracker-reports';
@@ -108,11 +113,11 @@ function App() {
   const [theme, setTheme] = useState(() => {
     const savedTheme = window.localStorage.getItem('activity-tracker-theme');
 
-    if (savedTheme === THEMES.DARK || savedTheme === THEMES.LIGHT) {
+    if (savedTheme === THEMES.AURORA || savedTheme === THEMES.MIDNIGHT) {
       return savedTheme;
     }
 
-    return LEGACY_THEME_ALIASES[savedTheme] || THEMES.DARK;
+    return LEGACY_THEME_ALIASES[savedTheme] || THEMES.AURORA;
   });
 
   // Состояние календаря
@@ -573,7 +578,7 @@ function App() {
 
   const handleThemeToggle = () => {
     setTheme((currentTheme) => (
-      currentTheme === THEMES.DARK ? THEMES.LIGHT : THEMES.DARK
+      currentTheme === THEMES.AURORA ? THEMES.MIDNIGHT : THEMES.AURORA
     ));
   };
 
@@ -677,7 +682,7 @@ function App() {
             onClick={handleThemeToggle}
             title="Переключить цветовой пресет"
           >
-            {theme === THEMES.DARK ? 'Тёмная тема' : 'Светлая тема'}
+            {`Пресет: ${THEME_LABELS[theme] || 'Aurora'}`}
           </button>
           <div
             ref={statusRef}

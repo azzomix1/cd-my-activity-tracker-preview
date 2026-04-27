@@ -1003,10 +1003,6 @@
   color: #8f5050;
 }
 
-.cabinet__filter-btn--active .cabinet__filter-count {
-  background: rgba(0, 122, 255, 0.14);
-}
-
 /* ── Единый список ── */
 .cabinet__list {
   display: flex;
@@ -1890,65 +1886,6 @@
   }
 }
 
-body[data-theme='midnight'] .cabinet__content {
-  background: rgba(247, 251, 255, 0.74);
-  border-color: rgba(173, 196, 232, 0.38);
-  box-shadow: 0 14px 30px rgba(116, 138, 174, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-body[data-theme='midnight'] .cabinet__header,
-body[data-theme='midnight'] .cabinet-mini,
-body[data-theme='midnight'] .cabinet__col-header {
-  background: linear-gradient(145deg, rgba(252, 254, 255, 0.88), rgba(239, 247, 255, 0.82));
-  border-color: rgba(178, 204, 237, 0.42);
-}
-
-body[data-theme='midnight'] .cabinet__section-title,
-body[data-theme='midnight'] .cabinet-mini__title,
-body[data-theme='midnight'] .cabinet-card__name,
-body[data-theme='midnight'] .past-panel__title,
-body[data-theme='midnight'] .past-panel__item-name {
-  color: #233559;
-}
-
-body[data-theme='midnight'] .cabinet__section-hint,
-body[data-theme='midnight'] .cabinet-mini__hint,
-body[data-theme='midnight'] .cabinet-mini__weekday,
-body[data-theme='midnight'] .cabinet-card__date,
-body[data-theme='midnight'] .past-panel__item-date {
-  color: #6a7f9f;
-}
-
-body[data-theme='midnight'] .cabinet-card__person {
-  color: #3d5780;
-}
-
-body[data-theme='midnight'] .cabinet-mini__day {
-  background: rgba(220, 236, 255, 0.48);
-  color: #6c80a0;
-}
-
-body[data-theme='midnight'] .cabinet-mini__day--active {
-  background: rgba(135, 195, 255, 0.32);
-  border-color: rgba(97, 162, 226, 0.44);
-  color: #2f6ebf;
-}
-
-body[data-theme='midnight'] .cabinet-mini__day--selected {
-  background: rgba(175, 166, 255, 0.36);
-  border-color: rgba(128, 136, 224, 0.58);
-  color: #4150ac;
-}
-
-body[data-theme='midnight'] .cabinet-mini__dot {
-  background: #3f90da;
-  box-shadow: 0 0 10px rgba(63, 144, 218, 0.35);
-}
-
-body[data-theme='midnight'] .cabinet__events-content {
-  border-right-color: rgba(165, 188, 219, 0.5);
-}
-
 /* ==============================================
    Neo Glass Personal Cabinet Layer
    ============================================== */
@@ -2181,6 +2118,10 @@ body[data-theme='midnight'] .cabinet-mini__weekday,
 body[data-theme='midnight'] .past-panel__item-date,
 body[data-theme='midnight'] .cabinet-card__date {
   color: #5f7797;
+}
+
+body[data-theme='midnight'] .cabinet-card__person {
+  color: #3d5780;
 }
 
 body[data-theme='midnight'] .cabinet-attention-item__meta,
