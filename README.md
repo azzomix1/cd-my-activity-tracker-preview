@@ -1,92 +1,129 @@
-# React + Vite
+# Activity Tracker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Веб-приложение для календаря активностей сотрудников, ведения отчетов и командной сводки.
 
-Currently, two official plugins are available:
+## Технологии
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Frontend: React + Vite
+- Backend API: Node.js + Express
+- База данных: PostgreSQL
+- Аутентификация: токен-сессии через API
 
-## React Compiler
+## Структура проекта
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- `src/` - актуальный frontend (Vite/React)
+- `server/` - backend API и слой работы с PostgreSQL
+- `server/migrations/` - SQL-миграции схемы
+- `scripts/` - служебные скрипты (миграции, smoke tests, admin/auth задачи)
+- `docs/` - проектная документация
+- `activity-tracker-new/` - отдельный старый под-проект (не используется основным запуском из корня)
 
-Note: This will impact Vite dev & build performances.
+## Требования
 
-## Expanding the ESLint configuration
+- Node.js 20+
+- npm 10+
+- PostgreSQL с доступной строкой подключения `DATABASE_URL`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Быстрый старт (локально)
 
-## Data Layer
+1. Установить зависимости:
 
-The repository now uses PostgreSQL as the primary application database.
+```powershell
+npm install
+```
 
-Current target architecture:
+2. Создать `.env.local` в корне:
 
-- frontend uses `VITE_API_URL`
-- local Node backend connects to PostgreSQL through `DATABASE_URL`
-- activities, reports and report drafts are stored in PostgreSQL
+```env
+VITE_API_URL=http://localhost:8787/api
+DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
+API_PORT=8787
+CORS_ORIGIN=http://localhost:5173
+```
 
-Setup guide for VK Cloud PostgreSQL:
+3. Применить миграции:
 
-- [docs/postgresql-vkcloud-setup.md](docs/postgresql-vkcloud-setup.md)
+```powershell
+npm run db:migrate
+```
 
-## Access policy foundation
+4. Запустить backend API:
 
-The application now has a shared access policy layer in [src/auth/accessPolicy.js](src/auth/accessPolicy.js).
+```powershell
+npm run api:dev
+```
 
-It currently defines:
+5. В отдельном терминале запустить frontend:
 
-- roles: `anonymous`, `employee`, `admin`
-- shared actions/capabilities for future auth integration
-- shared visibility helpers for `public` and `private` events
+```powershell
+npm run dev
+```
 
-Current UI behavior is unchanged, but public/private filtering is no longer hardcoded in scattered components. This is the first step toward staged authorization: next iterations can connect real session state and API-side enforcement to the same policy model.
+6. Проверить health endpoint:
 
-## Session foundation
+```text
+GET http://localhost:8787/api/health
+```
 
-The application now also has a frontend session provider in [src/auth/sessionContext.jsx](src/auth/sessionContext.jsx).
+Ожидаемый ответ:
 
-It introduces non-blocking session states for future integration:
+```json
+{ "success": true, "status": "ok" }
+```
 
-- `loading`
-- `anonymous`
-- `authenticated`
+## Переменные окружения
 
-At this stage, session state does not change the UI and does not enforce access on the frontend. It only establishes a stable runtime contract so the next backend/database step can plug real auth into the app without rewriting the component tree.
+Обязательные для локальной разработки:
 
-## GitHub Pages preview
+- `VITE_API_URL` - базовый URL API для frontend
+- `DATABASE_URL` - строка подключения PostgreSQL
 
-The repository now includes a separate preview workflow at [.github/workflows/deploy-pages-preview.yml](.github/workflows/deploy-pages-preview.yml).
+Опциональные:
 
-This workflow is designed for a true parallel preview site in a separate repository.
+- `API_PORT` - порт backend API (по умолчанию `8787`)
+- `CORS_ORIGIN` - список origin через запятую для CORS
+- `SMOKE_TEST_EMAIL` - логин для smoke-теста API
+- `SMOKE_TEST_PASSWORD` - пароль для smoke-теста API
 
-Recommended setup:
+## Основные npm-скрипты
 
-- production stays in the current repository via [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml)
-- preview is published from this repository into a second public repository, for example `your-org/activity-tracker-preview`
-- the preview repository serves GitHub Pages from its `gh-pages` branch
+- `npm run dev` - запуск frontend (Vite)
+- `npm run build` - production-сборка frontend
+- `npm run preview` - просмотр production-сборки
+- `npm run lint` - ESLint-проверка
+- `npm run api` - запуск backend API
+- `npm run api:dev` - запуск backend API в watch-режиме
+- `npm run db:migrate` - запуск SQL-миграций
+- `npm run db:seed-test-data` - сид тестовых данных
+- `npm run db:check-integrity` - проверка целостности данных
+- `npm run api:team-smoke` - smoke-тест сводки команды
 
-Required repository configuration in the current repository:
+## API-обзор
 
-- repository secret `PREVIEW_PAGES_TOKEN` with a classic PAT or fine-grained token that can push to the preview repository
+Ключевые группы endpoint-ов:
 
-How to use it:
+- `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`
+- `GET/POST/PUT/DELETE /api/activities`
+- `GET/PUT/DELETE /api/reports`
+- `PUT/DELETE /api/report-drafts`
+- `GET /api/public/activities`
+- `GET /api/team/users`, `GET /api/team/summary`
+- `GET/POST/DELETE /api/admin/hierarchy`, `POST /api/admin/hierarchy/bulk`
 
-- create a dedicated preview repository on GitHub
-- in the preview repository, enable GitHub Pages from branch `gh-pages` and folder `/ (root)`
-- in this repository, set `PREVIEW_PAGES_TOKEN`
-- push the testing build to the `pages-preview` branch, or run the workflow manually
-- by default the workflow targets `owner/current-repo-name-preview`; on manual run you can override the target repo through the `preview_repository` input
-- preview builds set `VITE_RELEASE_CHANNEL=preview` for future environment-specific behavior
+Для приватных endpoint-ов требуется `Authorization: Bearer <token>`.
 
-Benefits of this approach:
+## Документация
 
-- production and preview have different URLs and do not overwrite each other
-- employees can test the preview build safely before anything lands in `main`
-- the workflow does not affect the repository's main GitHub Pages configuration
+Полный индекс документации: [docs/README.md](docs/README.md)
 
-Notes:
+Ключевые гайды:
 
-- `GITHUB_TOKEN` is not enough for deploying into another repository; use `PREVIEW_PAGES_TOKEN`
-- because the app uses relative asset paths in Vite, the preview repository can be either `user.github.io/repo-name` or a custom domain
+- [PostgreSQL Setup](docs/postgresql-vkcloud-setup.md) - подключение и инициализация БД
+- [API Reference](docs/api-reference.md) - описание всех endpoint-ов
+- [Smoke Test](docs/api-smoke-test.md) - быстрый сквозной тест API
+- [CSS Visual Baseline](docs/css-visual-baseline.md) - правила CSS-рефактора
+
+## Замечания
+
+- Основной рабочий проект запускается из корня репозитория.
+- Frontend хранит в `localStorage` только UI-состояние (например, тема/фильтры); данные активностей и отчетов работают через API + PostgreSQL.

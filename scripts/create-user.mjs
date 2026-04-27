@@ -4,7 +4,7 @@ import { pool } from '../server/lib/db.js';
 async function main() {
   const email = String(process.argv[2] || '').trim().toLowerCase();
   const password = String(process.argv[3] || '');
-  const displayName = String(process.argv[4] || '').trim();
+  const displayName = String(process.argv[4] || '').trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
   const roleArg = String(process.argv[5] || '').trim().toLowerCase();
   const role = roleArg === 'administrator'
     || roleArg === 'employee'

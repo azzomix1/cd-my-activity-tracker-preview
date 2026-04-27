@@ -7,7 +7,7 @@
 - backend API: `server/index.js`
 - PostgreSQL access layer: `server/lib/*.js`
 - migration script: `scripts/db-migrate.mjs`
-- initial schema: `server/migrations/001_init.sql`
+- migrations: `server/migrations/001_init.sql` ... `server/migrations/007_activity_person_alias_map.sql`
 - frontend uses `VITE_API_URL`
 
 ## Какие таблицы создаются
@@ -15,6 +15,10 @@
 - `activities`
 - `activity_reports`
 - `activity_report_drafts`
+- `app_users`
+- `auth_sessions`
+- `user_hierarchy`
+- `activity_person_alias_map`
 
 На текущем этапе приложение уже может читать и писать:
 
@@ -39,6 +43,12 @@ DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
 - password
 - SSL requirement
 
+## Важный принцип переезда
+
+- Переносить данные из Yandex Cloud не требуется.
+- Нужно подключить новый `DATABASE_URL` от VK Cloud и выполнить миграции на пустой БД.
+- Миграции создадут ту же схему, которую использует текущий backend API.
+
 ## Локальная конфигурация
 
 В корне проекта создайте или обновите `.env.local`:
@@ -58,6 +68,8 @@ CORS_ORIGIN=http://localhost:5173
 npm run db:migrate
 ```
 
+Ожидаемый результат: `Database migrations completed successfully.`
+
 2. Запустить backend API:
 
 ```powershell
@@ -68,6 +80,18 @@ npm run api:dev
 
 ```powershell
 npm run dev
+```
+
+4. (Опционально) проверить API smoke-тест:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api-smoke-test.ps1
+```
+
+или
+
+```powershell
+npm run api:team-smoke
 ```
 
 ## Проверка подключения
@@ -92,17 +116,17 @@ GET http://localhost:8787/api/health
 - удаление активностей
 - сохранение отчетов
 - сохранение черновиков отчетов
+- аутентификация/сессии пользователей
+- иерархия руководитель-сотрудник
+- алиасы сотрудников для связывания активности с пользователем
 
 ## Что ещё осталось перевести с localStorage
 
 - в localStorage остаются только UI-настройки и тема
 
-## Важное ограничение
+## Чек-лист готовности VK Cloud
 
-Без реального `DATABASE_URL` я не могу подключиться к вашей VK Cloud базе из среды автоматически.
-Но проект уже подготовлен так, что после добавления строки подключения вам останется:
-
-1. выполнить `npm run db:migrate`
-2. запустить `npm run api:dev`
-3. проверить `GET /api/health`
-4. начать работу с PostgreSQL
+1. В `.env.local` указан `DATABASE_URL` от VK Cloud.
+2. `npm run db:migrate` выполняется без ошибок.
+3. `GET /api/health` возвращает `{ "success": true, "status": "ok" }`.
+4. Логин/создание активности/отчеты проходят через API без ошибок.
