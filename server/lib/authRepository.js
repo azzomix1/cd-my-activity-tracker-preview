@@ -206,7 +206,31 @@ export async function listUsersForTeamPanel({ role, userId }) {
   const normalizedRole = mapRoleToAuthRole(role);
   const normalizedUserId = String(userId || '').trim();
 
-  if (normalizedRole === 'administrator' || normalizedRole === 'full_manager') {
+  if (normalizedRole === 'administrator') {
+    const result = await query(
+      `
+        select
+          id,
+          email,
+          display_name,
+          role,
+          is_active
+        from app_users
+        where is_active = true
+        order by display_name asc, email asc
+      `,
+    );
+
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      email: String(row.email || ''),
+      displayName: String(row.display_name || ''),
+      role: mapRoleToAuthRole(row.role),
+      isActive: Boolean(row.is_active),
+    }));
+  }
+
+  if (normalizedRole === 'full_manager') {
     const result = await query(
       `
         select
