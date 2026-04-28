@@ -23,6 +23,13 @@ import {
 } from './lib/authRepository.js';
 import { canAssignActivityPerson } from './lib/activityPersonAccess.js';
 import {
+  listObjects,
+  createObject,
+  updateObject,
+  setObjectActive,
+  deleteObject,
+} from './lib/objectsRepository.js';
+import {
   deleteActivityReport,
   deleteActivityReportDraft,
   getReportsSnapshot,
@@ -446,6 +453,71 @@ app.delete('/api/report-drafts/:activityId', requireAuth, async (request, respon
     response.json({ success: true });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Failed to delete report draft.' });
+  }
+});
+
+// Objects (справочник объектов) — read: admin+full_manager, write: administrator only
+app.get('/api/admin/objects', requireAuth, requireHierarchyAdmin, async (_request, response) => {
+  try {
+    const items = await listObjects({ includeInactive: true });
+    response.json({ success: true, objects: items });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось загрузить объекты.' });
+  }
+});
+
+app.post('/api/admin/objects', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  if (request.auth.role !== 'administrator') {
+    response.status(403).json({ success: false, error: 'Только администратор может создавать объекты.' });
+    return;
+  }
+  try {
+    const { name, address, description } = request.body || {};
+    const item = await createObject({ name, address, description });
+    response.status(201).json({ success: true, object: item });
+  } catch (error) {
+    response.status(400).json({ success: false, error: error.message || 'Не удалось создать объект.' });
+  }
+});
+
+app.put('/api/admin/objects/:id', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  if (request.auth.role !== 'administrator') {
+    response.status(403).json({ success: false, error: 'Только администратор может редактировать объекты.' });
+    return;
+  }
+  try {
+    const { name, address, description } = request.body || {};
+    const item = await updateObject(request.params.id, { name, address, description });
+    response.json({ success: true, object: item });
+  } catch (error) {
+    response.status(400).json({ success: false, error: error.message || 'Не удалось обновить объект.' });
+  }
+});
+
+app.patch('/api/admin/objects/:id/active', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  if (request.auth.role !== 'administrator') {
+    response.status(403).json({ success: false, error: 'Только администратор может изменять статус объектов.' });
+    return;
+  }
+  try {
+    const isActive = Boolean(request.body?.isActive);
+    const item = await setObjectActive(request.params.id, isActive);
+    response.json({ success: true, object: item });
+  } catch (error) {
+    response.status(400).json({ success: false, error: error.message || 'Не удалось изменить статус объекта.' });
+  }
+});
+
+app.delete('/api/admin/objects/:id', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  if (request.auth.role !== 'administrator') {
+    response.status(403).json({ success: false, error: 'Только администратор может удалять объекты.' });
+    return;
+  }
+  try {
+    await deleteObject(request.params.id);
+    response.json({ success: true });
+  } catch (error) {
+    response.status(400).json({ success: false, error: error.message || 'Не удалось удалить объект.' });
   }
 });
 

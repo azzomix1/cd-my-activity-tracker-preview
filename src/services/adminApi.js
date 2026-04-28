@@ -90,3 +90,39 @@ export async function deleteHierarchyLink(managerUserId, employeeUserId) {
     body: JSON.stringify({ managerUserId, employeeUserId }),
   });
 }
+
+export async function fetchAdminObjects() {
+  const payload = await request('/admin/objects');
+  return Array.isArray(payload.objects) ? payload.objects : [];
+}
+
+export async function createAdminObject({ name, address, description }) {
+  const payload = await request('/admin/objects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, address, description }),
+  });
+  return payload.object;
+}
+
+export async function updateAdminObject(id, { name, address, description }) {
+  const payload = await request(`/admin/objects/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, address, description }),
+  });
+  return payload.object;
+}
+
+export async function setAdminObjectActive(id, isActive) {
+  const payload = await request(`/admin/objects/${id}/active`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isActive }),
+  });
+  return payload.object;
+}
+
+export async function deleteAdminObject(id) {
+  return request(`/admin/objects/${id}`, { method: 'DELETE' });
+}

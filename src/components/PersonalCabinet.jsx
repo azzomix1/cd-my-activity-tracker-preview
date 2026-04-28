@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowUp, BellRing, ChevronDown, CircleAlert, Clock3, FileText, Pencil, X } from 'lucide-react';
 import { getActivityAudienceLabel, isPrivateActivity, isPublicActivity } from '../auth/accessPolicy';
 import AdminHierarchyPanel from './AdminHierarchyPanel';
+import AdminObjectsPanel from './AdminObjectsPanel';
 import PastEventsPanel from './PastEventsPanel';
 import { fetchTeamSummary, fetchTeamUsers } from '../services/teamApi';
 import { MONTHS, WEEKDAYS, getCalendarData, isToday } from '../utils/dateUtils';
@@ -436,6 +437,7 @@ function CabinetEventCard({ activity, onEdit, onDelete, onReportClick, showRepor
  * @returns {JSX.Element}
  */
 function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHierarchy, onReportClick, onAddClick, onEdit, onDelete }) {
+  const isAdministrator = String(currentUserRole || '').trim() === 'administrator';
   const todayKey = getTodayKey();
   const tomorrowKey = getRelativeDayKey(1);
   const today = useMemo(() => new Date(), []);
@@ -451,6 +453,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
   const [isPastMissingOpen, setIsPastMissingOpen] = useState(true);
   const [isPastFilledOpen, setIsPastFilledOpen] = useState(false);
   const [isHierarchyOpen, setIsHierarchyOpen] = useState(false);
+  const [isObjectsOpen, setIsObjectsOpen] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
@@ -828,16 +831,17 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
   }, [selectedPersonLabel]);
 
   useEffect(() => {
-    if (!isHierarchyOpen) return undefined;
+    if (!isHierarchyOpen && !isObjectsOpen) return undefined;
 
     function handlePointerDown(event) {
       if (hierarchyDropdownRef.current && !hierarchyDropdownRef.current.contains(event.target)) {
         setIsHierarchyOpen(false);
+        setIsObjectsOpen(false);
       }
     }
 
     function handleEscape(event) {
-      if (event.key === 'Escape') setIsHierarchyOpen(false);
+      if (event.key === 'Escape') { setIsHierarchyOpen(false); setIsObjectsOpen(false); }
     }
 
     document.addEventListener('pointerdown', handlePointerDown);
@@ -846,7 +850,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isHierarchyOpen]);
+  }, [isHierarchyOpen, isObjectsOpen]);
 
   const pastSectionRef = useRef(null);
 
@@ -1249,7 +1253,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                     <button
                       type="button"
                       className={`cabinet__hero-nav-btn cabinet__hero-nav-btn--hierarchy${isHierarchyOpen ? ' cabinet__hero-nav-btn--active' : ''}`}
-                      onClick={() => setIsHierarchyOpen((prev) => !prev)}
+                      onClick={() => { setIsHierarchyOpen((prev) => !prev); setIsObjectsOpen(false); }}
                       aria-expanded={isHierarchyOpen}
                     >
                       Иерархия
@@ -1263,6 +1267,30 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                     {isHierarchyOpen && (
                       <div className="cabinet__hierarchy-panel">
                         <AdminHierarchyPanel />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {canManageHierarchy && (
+                  <div className="cabinet__hierarchy-dropdown">
+                    <button
+                      type="button"
+                      className={`cabinet__hero-nav-btn cabinet__hero-nav-btn--hierarchy${isObjectsOpen ? ' cabinet__hero-nav-btn--active' : ''}`}
+                      onClick={() => { setIsObjectsOpen((prev) => !prev); setIsHierarchyOpen(false); }}
+                      aria-expanded={isObjectsOpen}
+                    >
+                      Объекты
+                      <ChevronDown
+                        size={12}
+                        aria-hidden="true"
+                        className={`cabinet__hierarchy-chevron${isObjectsOpen ? ' cabinet__hierarchy-chevron--open' : ''}`}
+                      />
+                    </button>
+
+                    {isObjectsOpen && (
+                      <div className="cabinet__hierarchy-panel">
+                        <AdminObjectsPanel isReadOnly={!isAdministrator} />
                       </div>
                     )}
                   </div>
