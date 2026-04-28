@@ -1,6 +1,7 @@
 import { Suspense, lazy, useState, useMemo, useEffect, useRef } from 'react';
 import { ArrowUp, CircleAlert, CloudCheck, LoaderCircle, Search } from 'lucide-react';
 import Calendar from './components/Calendar';
+import FeedbackButton from './components/FeedbackButton';
 import ActivitiesPanel from './components/ActivitiesPanel';
 import { useActivities } from './hooks/useActivities';
 import { useActivityReports } from './hooks/useActivityReports';
@@ -1016,6 +1017,8 @@ function App() {
           </button>
         </div>
       )}
+
+      {isAuthenticated && <FeedbackButton />}
 
       {deleteConfirmId && (
         <div className="delete-confirm-overlay" role="dialog" aria-modal="true" aria-label="Подтверждение удаления">

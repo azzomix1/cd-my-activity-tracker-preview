@@ -46,6 +46,7 @@ import {
   userCanManageActivityReport,
 } from './lib/reportsRepository.js';
 import { getTeamSummary } from './lib/teamSummaryRepository.js';
+import { sendFeedbackEmail } from './lib/emailService.js';
 import { pool } from './lib/db.js';
 import { loadEnv } from './lib/loadEnv.js';
 
@@ -590,6 +591,32 @@ app.delete('/api/admin/objects/:id', requireAuth, requireHierarchyAdmin, async (
     response.json({ success: true });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Не удалось удалить объект.' });
+  }
+});
+
+app.post('/api/feedback', requireAuth, async (request, response) => {
+  const message = String(request.body?.message || '').trim();
+
+  if (!message) {
+    response.status(400).json({ success: false, error: 'Сообщение не может быть пустым.' });
+    return;
+  }
+
+  if (message.length > 5000) {
+    response.status(400).json({ success: false, error: 'Сообщение слишком длинное (максимум 5000 символов).' });
+    return;
+  }
+
+  try {
+    await sendFeedbackEmail({
+      senderName: request.auth.displayName || request.auth.email,
+      senderEmail: request.auth.email,
+      message,
+    });
+    response.json({ success: true });
+  } catch (error) {
+    console.error('Feedback email error:', error.message);
+    response.status(500).json({ success: false, error: 'Не удалось отправить сообщение. Попробуйте позже.' });
   }
 });
 
