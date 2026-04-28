@@ -13,6 +13,13 @@ export function normalizeEventType(value) {
 }
 
 export function normalizeActivityInput(activity = {}) {
+  const participantUserIds = Array.isArray(activity.participantUserIds)
+    ? activity.participantUserIds.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+  const participantNames = Array.isArray(activity.participantNames)
+    ? activity.participantNames.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+
   return {
     id: String(activity.id ?? '').trim(),
     employeeUserId: String(activity.employeeUserId ?? '').trim(),
@@ -20,6 +27,8 @@ export function normalizeActivityInput(activity = {}) {
     time: String(activity.time ?? '').trim(),
     name: String(activity.name ?? '').trim(),
     person: String(activity.person ?? '').trim(),
+    participantUserIds,
+    participantNames,
     objects: String(activity.objects ?? activity.project ?? '').trim(),
     eventType: normalizeEventType(activity.eventType),
     visibility: normalizeVisibility(activity.visibility),
@@ -63,13 +72,22 @@ export function mapDbRowToActivity(row) {
     ? String(row.event_time).slice(0, 5)
     : '';
 
+  const participantUserIds = Array.isArray(row.participant_user_ids)
+    ? row.participant_user_ids.map((item) => String(item || '')).filter(Boolean)
+    : [];
+  const participantNames = Array.isArray(row.participant_names)
+    ? row.participant_names.map((item) => String(item || '')).filter(Boolean)
+    : [];
+
   return {
     id: String(row.id),
     employeeUserId: row.employee_user_id ? String(row.employee_user_id) : '',
+    participantUserIds,
+    participantNames,
     date: eventDate,
     time: eventTime,
     name: row.name || '',
-    person: row.person || '',
+    person: participantNames.length > 0 ? participantNames.join(', ') : row.person || '',
     objects: row.objects || '',
     eventType: normalizeEventType(row.event_type),
     visibility: normalizeVisibility(row.visibility),

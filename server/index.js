@@ -35,6 +35,7 @@ import {
   getReportsSnapshot,
   upsertActivityReport,
   upsertActivityReportDraft,
+  userCanManageActivityReport,
 } from './lib/reportsRepository.js';
 import { getTeamSummary } from './lib/teamSummaryRepository.js';
 import { pool } from './lib/db.js';
@@ -166,10 +167,18 @@ async function requirePersonAssignmentAccess(request, response, next) {
   try {
     const targetPerson = String(request.body?.activity?.person ?? '').trim();
     const targetEmployeeUserId = String(request.body?.activity?.employeeUserId ?? '').trim();
+    const targetEmployeeUserIds = Array.isArray(request.body?.activity?.participantUserIds)
+      ? request.body.activity.participantUserIds
+      : [];
+    const targetPersons = Array.isArray(request.body?.activity?.participantNames)
+      ? request.body.activity.participantNames
+      : [];
     const accessResult = await canAssignActivityPerson({
       auth: request.auth,
       targetEmployeeUserId,
       targetPerson,
+      targetEmployeeUserIds,
+      targetPersons,
     });
 
     if (!accessResult.allowed) {
@@ -422,7 +431,14 @@ app.get('/api/reports', requireAuth, async (_request, response) => {
 
 app.put('/api/reports/:activityId', requireAuth, async (request, response) => {
   try {
-    const item = await upsertActivityReport(request.params.activityId, request.body?.report || {});
+    const employeeUserId = String(request.auth.userId || '').trim();
+    const allowed = await userCanManageActivityReport(request.params.activityId, employeeUserId, request.auth);
+    if (!allowed) {
+      response.status(403).json({ success: false, error: 'Недостаточно прав для заполнения отчета по этому мероприятию.' });
+      return;
+    }
+
+    const item = await upsertActivityReport(request.params.activityId, employeeUserId, request.body?.report || {});
     response.json({ success: true, item });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Failed to save report.' });
@@ -431,7 +447,7 @@ app.put('/api/reports/:activityId', requireAuth, async (request, response) => {
 
 app.delete('/api/reports/:activityId', requireAuth, async (request, response) => {
   try {
-    await deleteActivityReport(request.params.activityId);
+    await deleteActivityReport(request.params.activityId, request.auth.userId);
     response.json({ success: true });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Failed to delete report.' });
@@ -440,7 +456,14 @@ app.delete('/api/reports/:activityId', requireAuth, async (request, response) =>
 
 app.put('/api/report-drafts/:activityId', requireAuth, async (request, response) => {
   try {
-    const item = await upsertActivityReportDraft(request.params.activityId, request.body?.draft || {});
+    const employeeUserId = String(request.auth.userId || '').trim();
+    const allowed = await userCanManageActivityReport(request.params.activityId, employeeUserId, request.auth);
+    if (!allowed) {
+      response.status(403).json({ success: false, error: 'Недостаточно прав для сохранения черновика отчета по этому мероприятию.' });
+      return;
+    }
+
+    const item = await upsertActivityReportDraft(request.params.activityId, employeeUserId, request.body?.draft || {});
     response.json({ success: true, item });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Failed to save report draft.' });
@@ -449,7 +472,7 @@ app.put('/api/report-drafts/:activityId', requireAuth, async (request, response)
 
 app.delete('/api/report-drafts/:activityId', requireAuth, async (request, response) => {
   try {
-    await deleteActivityReportDraft(request.params.activityId);
+    await deleteActivityReportDraft(request.params.activityId, request.auth.userId);
     response.json({ success: true });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Failed to delete report draft.' });

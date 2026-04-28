@@ -5,6 +5,8 @@ import ActivitiesPanel from './components/ActivitiesPanel';
 import { useActivities } from './hooks/useActivities';
 import { useActivityReports } from './hooks/useActivityReports';
 import { CALENDAR_VIEW_MODES, usePublicCalendar } from './hooks/usePublicCalendar';
+import { buildReportOwnerKey } from './services/reportsApi';
+import { fetchTeamUsers } from './services/teamApi';
 import { SESSION_STATUSES, useAuthSession } from './auth/sessionContext.jsx';
 import './App.css';
 
@@ -157,6 +159,7 @@ function App() {
   const [actionError, setActionError] = useState('');
   const [modalSubmitError, setModalSubmitError] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [assignableUsers, setAssignableUsers] = useState([]);
   const {
     session,
     sessionStatus,
@@ -259,12 +262,57 @@ function App() {
     upsertDraft,
     queueDraftChange,
     discardDraft,
-  } = useActivityReports({ enabled: isAuthenticated });
+  } = useActivityReports({ enabled: isAuthenticated, currentUserId: session.user?.id || '' });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!isAuthenticated || !session.user) {
+      setAssignableUsers([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    async function loadAssignableUsers() {
+      if (session.role === 'employee') {
+        if (isMounted) {
+          setAssignableUsers([session.user]);
+        }
+        return;
+      }
+
+      try {
+        const users = await fetchTeamUsers();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const nextUsers = [...users];
+        if (!nextUsers.some((user) => user.id === session.user.id)) {
+          nextUsers.unshift(session.user);
+        }
+        setAssignableUsers(nextUsers);
+      } catch {
+        if (isMounted) {
+          setAssignableUsers([session.user]);
+        }
+      }
+    }
+
+    loadAssignableUsers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, session.role, session.user]);
 
   const activitiesWithReports = useMemo(
     () => activities.map((activity) => {
-      const reportData = reportsByActivityId[activity.id] || null;
-      const reportDraft = reportDraftsByActivityId[activity.id] || null;
+      const reportKey = buildReportOwnerKey(activity.id, session.user?.id || '');
+      const reportData = reportsByActivityId[reportKey] || null;
+      const reportDraft = reportDraftsByActivityId[reportKey] || null;
 
       return {
         ...activity,
@@ -274,7 +322,7 @@ function App() {
         reportFilled: Boolean(reportData),
       };
     }),
-    [activities, reportDraftsByActivityId, reportsByActivityId],
+    [activities, reportDraftsByActivityId, reportsByActivityId, session.user?.id],
   );
 
   useEffect(() => {
@@ -300,13 +348,15 @@ function App() {
     async function migrateLegacyReportState() {
       try {
         for (const [activityId, reportData] of reportEntries) {
-          if (!reportsByActivityId[activityId]) {
+          const reportKey = buildReportOwnerKey(activityId, session.user?.id || '');
+          if (!reportsByActivityId[reportKey]) {
             await saveReport(activityId, reportData);
           }
         }
 
         for (const [activityId, draftData] of draftEntries) {
-          if (!reportDraftsByActivityId[activityId] && !reportsByActivityId[activityId]) {
+          const reportKey = buildReportOwnerKey(activityId, session.user?.id || '');
+          if (!reportDraftsByActivityId[reportKey] && !reportsByActivityId[reportKey]) {
             await upsertDraft(activityId, draftData);
           }
         }
@@ -319,7 +369,7 @@ function App() {
     }
 
     migrateLegacyReportState();
-  }, [activities, isReportsLoading, reportDraftsByActivityId, reportsByActivityId, saveReport, upsertDraft]);
+  }, [activities, isReportsLoading, reportDraftsByActivityId, reportsByActivityId, saveReport, session.user?.id, upsertDraft]);
 
   // Подсказки для автодополнения
   const suggestions = useMemo(() => ({
@@ -496,7 +546,13 @@ function App() {
     const resolvedActivityData = view === 'cabinet' && session.user?.id
       ? {
           ...activityData,
-          employeeUserId: String(session.user.id),
+          employeeUserId: activityData.employeeUserId || String(session.user.id),
+          participantUserIds: Array.isArray(activityData.participantUserIds) && activityData.participantUserIds.length > 0
+            ? activityData.participantUserIds
+            : [String(session.user.id)],
+          participantNames: Array.isArray(activityData.participantNames) && activityData.participantNames.length > 0
+            ? activityData.participantNames
+            : [String(session.user.displayName || session.user.email || '')],
         }
       : activityData;
 
@@ -933,6 +989,7 @@ function App() {
           activity={editingActivity}
           selectedDate={selectedDate}
           suggestions={suggestions}
+          assignableUsers={assignableUsers}
           isSubmitting={isSaving}
           submitError={modalSubmitError}
         />
@@ -943,7 +1000,7 @@ function App() {
           key={reportModalInstanceKey}
           isOpen={isReportModalOpen}
           activity={reportActivity}
-          draftData={reportActivity ? reportDraftsByActivityId[reportActivity.id] || null : null}
+          draftData={reportActivity ? reportDraftsByActivityId[buildReportOwnerKey(reportActivity.id, session.user?.id || '')] || null : null}
           onClose={handleReportModalClose}
           onDraftChange={handleReportDraftChange}
           onDiscardDraft={handleReportDraftDiscard}

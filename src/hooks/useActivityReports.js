@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  buildReportOwnerKey,
   deleteReportDraftFromApi,
   fetchReportsSnapshotFromApi,
   normalizeReportData,
@@ -14,7 +15,7 @@ function cloneTimers(timers) {
   return Array.from(timers.values());
 }
 
-export function useActivityReports({ enabled = false } = {}) {
+export function useActivityReports({ enabled = false, currentUserId = '' } = {}) {
   const [reportsByActivityId, setReportsByActivityId] = useState({});
   const [reportDraftsByActivityId, setReportDraftsByActivityId] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -83,15 +84,20 @@ export function useActivityReports({ enabled = false } = {}) {
       return { success: false, error: 'Требуется авторизация.' };
     }
 
+    const reportKey = buildReportOwnerKey(activityId, currentUserId);
+    if (!activityId || !currentUserId) {
+      return { success: false, error: 'Требуется идентификатор сотрудника для отчета.' };
+    }
+
     const normalizedReport = normalizeReportData({
       ...reportData,
       updatedAt: new Date().toISOString(),
     });
 
-    const pendingTimerId = draftTimersRef.current.get(activityId);
+    const pendingTimerId = draftTimersRef.current.get(reportKey);
     if (pendingTimerId) {
       window.clearTimeout(pendingTimerId);
-      draftTimersRef.current.delete(activityId);
+      draftTimersRef.current.delete(reportKey);
     }
 
     setIsSaving(true);
@@ -102,16 +108,16 @@ export function useActivityReports({ enabled = false } = {}) {
 
       setReportsByActivityId((prev) => ({
         ...prev,
-        [activityId]: savedReport,
+        [reportKey]: savedReport,
       }));
 
       setReportDraftsByActivityId((prev) => {
-        if (!(activityId in prev)) {
+        if (!(reportKey in prev)) {
           return prev;
         }
 
         const nextDrafts = { ...prev };
-        delete nextDrafts[activityId];
+        delete nextDrafts[reportKey];
         return nextDrafts;
       });
 
@@ -123,11 +129,16 @@ export function useActivityReports({ enabled = false } = {}) {
     } finally {
       setIsSaving(false);
     }
-  }, [enabled]);
+  }, [currentUserId, enabled]);
 
   const upsertDraft = useCallback(async (activityId, draftData) => {
     if (!enabled) {
       return { success: false, error: 'Требуется авторизация.' };
+    }
+
+    const reportKey = buildReportOwnerKey(activityId, currentUserId);
+    if (!activityId || !currentUserId) {
+      return { success: false, error: 'Требуется идентификатор сотрудника для черновика.' };
     }
 
     const normalizedDraft = normalizeReportDraftData({
@@ -139,7 +150,7 @@ export function useActivityReports({ enabled = false } = {}) {
       const savedDraft = await saveReportDraftToApi(activityId, normalizedDraft);
       setReportDraftsByActivityId((prev) => ({
         ...prev,
-        [activityId]: savedDraft,
+        [reportKey]: savedDraft,
       }));
       setSyncError('');
       return { success: true, item: savedDraft };
@@ -147,7 +158,7 @@ export function useActivityReports({ enabled = false } = {}) {
       setSyncError(error.message || 'Не удалось сохранить черновик отчета.');
       return { success: false, error: error.message || 'Не удалось сохранить черновик отчета.' };
     }
-  }, [enabled]);
+  }, [currentUserId, enabled]);
 
   const queueDraftChange = useCallback((activityId, draftData) => {
     if (!enabled) {
@@ -155,34 +166,35 @@ export function useActivityReports({ enabled = false } = {}) {
     }
 
     const normalizedActivityId = String(activityId || '').trim();
+    const reportKey = buildReportOwnerKey(normalizedActivityId, currentUserId);
 
-    if (!normalizedActivityId) {
+    if (!normalizedActivityId || !currentUserId) {
       return;
     }
 
-    const pendingTimerId = draftTimersRef.current.get(normalizedActivityId);
+    const pendingTimerId = draftTimersRef.current.get(reportKey);
     if (pendingTimerId) {
       window.clearTimeout(pendingTimerId);
-      draftTimersRef.current.delete(normalizedActivityId);
+      draftTimersRef.current.delete(reportKey);
     }
 
     if (!draftData) {
       let previousDraft = null;
 
       setReportDraftsByActivityId((prev) => {
-        if (!(normalizedActivityId in prev)) {
+        if (!(reportKey in prev)) {
           return prev;
         }
 
-        previousDraft = prev[normalizedActivityId];
+        previousDraft = prev[reportKey];
 
         const nextDrafts = { ...prev };
-        delete nextDrafts[normalizedActivityId];
+        delete nextDrafts[reportKey];
         return nextDrafts;
       });
 
       const timerId = window.setTimeout(async () => {
-        draftTimersRef.current.delete(normalizedActivityId);
+        draftTimersRef.current.delete(reportKey);
 
         try {
           await deleteReportDraftFromApi(normalizedActivityId);
@@ -190,13 +202,13 @@ export function useActivityReports({ enabled = false } = {}) {
         } catch (error) {
           if (previousDraft) {
             setReportDraftsByActivityId((prev) => {
-              if (normalizedActivityId in prev) {
+              if (reportKey in prev) {
                 return prev;
               }
 
               return {
                 ...prev,
-                [normalizedActivityId]: previousDraft,
+                [reportKey]: previousDraft,
               };
             });
           }
@@ -205,7 +217,7 @@ export function useActivityReports({ enabled = false } = {}) {
         }
       }, DRAFT_SYNC_DELAY_MS);
 
-      draftTimersRef.current.set(normalizedActivityId, timerId);
+      draftTimersRef.current.set(reportKey, timerId);
 
       return;
     }
@@ -217,16 +229,16 @@ export function useActivityReports({ enabled = false } = {}) {
 
     setReportDraftsByActivityId((prev) => ({
       ...prev,
-      [normalizedActivityId]: normalizedDraft,
+      [reportKey]: normalizedDraft,
     }));
 
     const timerId = window.setTimeout(async () => {
-      draftTimersRef.current.delete(normalizedActivityId);
+      draftTimersRef.current.delete(reportKey);
       await upsertDraft(normalizedActivityId, normalizedDraft);
     }, DRAFT_SYNC_DELAY_MS);
 
-    draftTimersRef.current.set(normalizedActivityId, timerId);
-  }, [enabled, upsertDraft]);
+    draftTimersRef.current.set(reportKey, timerId);
+  }, [currentUserId, enabled, upsertDraft]);
 
   const discardDraft = useCallback(async (activityId) => {
     if (!enabled) {
@@ -234,28 +246,29 @@ export function useActivityReports({ enabled = false } = {}) {
     }
 
     const normalizedActivityId = String(activityId || '').trim();
+    const reportKey = buildReportOwnerKey(normalizedActivityId, currentUserId);
 
-    if (!normalizedActivityId) {
+    if (!normalizedActivityId || !currentUserId) {
       return { success: false, error: 'Activity id is required.' };
     }
 
-    const pendingTimerId = draftTimersRef.current.get(normalizedActivityId);
+    const pendingTimerId = draftTimersRef.current.get(reportKey);
     if (pendingTimerId) {
       window.clearTimeout(pendingTimerId);
-      draftTimersRef.current.delete(normalizedActivityId);
+      draftTimersRef.current.delete(reportKey);
     }
 
     let previousDraft = null;
 
     setReportDraftsByActivityId((prev) => {
-      if (!(normalizedActivityId in prev)) {
+      if (!(reportKey in prev)) {
         return prev;
       }
 
-       previousDraft = prev[normalizedActivityId];
+       previousDraft = prev[reportKey];
 
       const nextDrafts = { ...prev };
-      delete nextDrafts[normalizedActivityId];
+      delete nextDrafts[reportKey];
       return nextDrafts;
     });
 
@@ -266,13 +279,13 @@ export function useActivityReports({ enabled = false } = {}) {
     } catch (error) {
       if (previousDraft) {
         setReportDraftsByActivityId((prev) => {
-          if (normalizedActivityId in prev) {
+          if (reportKey in prev) {
             return prev;
           }
 
           return {
             ...prev,
-            [normalizedActivityId]: previousDraft,
+            [reportKey]: previousDraft,
           };
         });
       }
@@ -280,7 +293,7 @@ export function useActivityReports({ enabled = false } = {}) {
       setSyncError(error.message || 'Не удалось удалить черновик отчета.');
       return { success: false, error: error.message || 'Не удалось удалить черновик отчета.' };
     }
-  }, [enabled]);
+  }, [currentUserId, enabled]);
 
   return {
     reportsByActivityId,

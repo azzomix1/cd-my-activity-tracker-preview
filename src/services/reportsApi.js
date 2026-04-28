@@ -12,6 +12,20 @@ function normalizeString(value) {
   return typeof value === 'string' ? value : '';
 }
 
+function normalizeStringArray(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeString(item).trim()).filter(Boolean);
+  }
+
+  const normalized = normalizeString(value).trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
 function normalizeProjects(value, preserveEmpty) {
   if (!Array.isArray(value)) {
     return [];
@@ -22,10 +36,13 @@ function normalizeProjects(value, preserveEmpty) {
 }
 
 export function normalizeReportData(reportData = {}) {
+  const employeeNames = normalizeStringArray(reportData.employeeNames || reportData.employeeName);
+
   return {
     date: normalizeString(reportData.date),
     time: normalizeString(reportData.time),
-    employeeName: normalizeString(reportData.employeeName),
+    employeeName: normalizeString(reportData.employeeName) || employeeNames.join(', '),
+    employeeNames,
     meetingContent: normalizeString(reportData.meetingContent),
     meetingFormat: normalizeString(reportData.meetingFormat),
     projects: normalizeProjects(reportData.projects, false),
@@ -37,10 +54,13 @@ export function normalizeReportData(reportData = {}) {
 }
 
 export function normalizeReportDraftData(draftData = {}) {
+  const employeeNames = normalizeStringArray(draftData.employeeNames || draftData.employeeName);
+
   return {
     date: normalizeString(draftData.date),
     time: normalizeString(draftData.time),
-    employeeName: normalizeString(draftData.employeeName),
+    employeeName: normalizeString(draftData.employeeName) || employeeNames.join(', '),
+    employeeNames,
     meetingContent: normalizeString(draftData.meetingContent),
     meetingFormat: normalizeString(draftData.meetingFormat),
     projects: normalizeProjects(draftData.projects, true),
@@ -153,4 +173,8 @@ export async function deleteReportDraftFromApi(activityId) {
   return request(`/report-drafts/${encodeURIComponent(String(activityId))}`, {
     method: 'DELETE',
   });
+}
+
+export function buildReportOwnerKey(activityId, employeeUserId) {
+  return `${String(activityId || '').trim()}::${String(employeeUserId || '').trim()}`;
 }

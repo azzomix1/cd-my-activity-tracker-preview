@@ -18,7 +18,7 @@ function splitObjects(value) {
  *
  * @param {import('../services/activitiesApi').Activity|null} activity Редактируемая активность или `null`.
  * @param {Date|null} selectedDate Выбранная дата календаря для режима создания.
- * @returns {{date: string, time: string, name: string, person: string, objects: string, eventType: 'internal'|'external'}}
+ * @returns {{date: string, time: string, name: string, participantUserIds: string[], objectItems: string[], eventType: 'internal'|'external', visibility: 'public'|'private'}}
  * Начальное состояние формы.
  */
 function createInitialFormData(activity, selectedDate) {
@@ -31,7 +31,9 @@ function createInitialFormData(activity, selectedDate) {
       date: dateStr,
       time: activity.time || '',
       name: activity.name || '',
-      person: activity.person || '',
+      participantUserIds: Array.isArray(activity.participantUserIds) && activity.participantUserIds.length > 0
+        ? activity.participantUserIds
+        : (activity.employeeUserId ? [activity.employeeUserId] : ['']),
       objectItems: initialObjectItems.length > 0 ? initialObjectItems : [''],
       eventType: activity.eventType || 'internal',
       visibility: activity.visibility || 'public',
@@ -42,7 +44,7 @@ function createInitialFormData(activity, selectedDate) {
     date: selectedDate ? toInputDateFormat(selectedDate) : '',
     time: '',
     name: '',
-    person: '',
+    participantUserIds: [''],
     objectItems: [''],
     eventType: 'internal',
     visibility: 'public',
@@ -59,6 +61,7 @@ function createInitialFormData(activity, selectedDate) {
  * @param {import('../services/activitiesApi').Activity|null} props.activity Активность для редактирования или `null`.
  * @param {Date|null} props.selectedDate Выбранная дата календаря.
  * @param {{names: string[], persons: string[], objects: string[]}} props.suggestions Данные автодополнения.
+ * @param {{id: string, displayName?: string, email?: string}[]} [props.assignableUsers=[]] Сотрудники, которых можно назначить в мероприятие.
  * @param {boolean} props.isSubmitting Флаг отправки формы.
  * @returns {JSX.Element|null} JSX модального окна либо `null`, если окно закрыто.
  */
@@ -69,6 +72,7 @@ function ActivityModal({
   activity,
   selectedDate,
   suggestions,
+  assignableUsers = [],
   isSubmitting,
   submitError,
 }) {
@@ -115,6 +119,36 @@ function ActivityModal({
     }));
   };
 
+  const handleParticipantChange = (index, value) => {
+    setValidationError('');
+    setFormData((prev) => ({
+      ...prev,
+      participantUserIds: prev.participantUserIds.map((item, itemIndex) => (
+        itemIndex === index ? value : item
+      )),
+    }));
+  };
+
+  const handleAddParticipant = () => {
+    setValidationError('');
+    setFormData((prev) => ({
+      ...prev,
+      participantUserIds: [...prev.participantUserIds, ''],
+    }));
+  };
+
+  const handleRemoveParticipant = (index) => {
+    setValidationError('');
+    setFormData((prev) => {
+      const nextParticipantUserIds = prev.participantUserIds.filter((_, itemIndex) => itemIndex !== index);
+
+      return {
+        ...prev,
+        participantUserIds: nextParticipantUserIds.length > 0 ? nextParticipantUserIds : [''],
+      };
+    });
+  };
+
   const handleAddObject = () => {
     setValidationError('');
     setFormData((prev) => ({
@@ -145,12 +179,27 @@ function ActivityModal({
       return;
     }
 
+    const participantUserIds = formData.participantUserIds.map((item) => item.trim()).filter(Boolean);
+
+    if (participantUserIds.length === 0) {
+      setValidationError('Нужно выбрать хотя бы одного сотрудника для мероприятия.');
+      return;
+    }
+
+    const participantNames = participantUserIds
+      .map((participantUserId) => assignableUsers.find((item) => item.id === participantUserId))
+      .filter(Boolean)
+      .map((item) => item.displayName || item.email || item.id);
+
     const activityData = {
       ...(activity && { id: activity.id }),
       date: fromInputDateFormat(formData.date),
       time: formData.time,
       name: trimmedName,
-      person: formData.person.trim(),
+      employeeUserId: participantUserIds[0] || '',
+      participantUserIds,
+      participantNames,
+      person: participantNames.join(', '),
       objects: formData.objectItems.map((item) => item.trim()).filter(Boolean).join(', '),
       eventType: formData.eventType,
       visibility: formData.visibility,
@@ -222,22 +271,47 @@ function ActivityModal({
           </div>
 
           <div className="form-group">
-            <label htmlFor="person">Участник</label>
-            <input
-              type="text"
-              id="person"
-              name="person"
-              value={formData.person}
-              onChange={handleChange}
-              placeholder="ФИО участника"
-              list="personsList"
-              disabled={isSubmitting}
-            />
-            <datalist id="personsList">
-              {suggestions.persons.map((item, i) => (
-                <option key={i} value={item} />
+            <div className="report-modal__projects-header">
+              <label>Сотрудники</label>
+              <button
+                type="button"
+                className="btn btn-edit report-modal__project-add"
+                onClick={handleAddParticipant}
+                disabled={isSubmitting}
+              >
+                <Plus size={14} aria-hidden="true" />
+                Добавить сотрудника
+              </button>
+            </div>
+
+            <div className="report-modal__projects-list">
+              {formData.participantUserIds.map((participantUserId, index) => (
+                <div key={`participant-${index}`} className="report-modal__project-row">
+                  <select
+                    value={participantUserId}
+                    onChange={(event) => handleParticipantChange(index, event.target.value)}
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Выберите сотрудника</option>
+                    {assignableUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.displayName || user.email || user.id}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-cancel report-modal__project-remove"
+                    onClick={() => handleRemoveParticipant(index)}
+                    disabled={isSubmitting || formData.participantUserIds.length <= 1}
+                    aria-label={`Удалить сотрудника ${index + 1}`}
+                  >
+                    <X size={14} aria-hidden="true" />
+                    Убрать
+                  </button>
+                </div>
               ))}
-            </datalist>
+            </div>
           </div>
 
           <div className="form-group">

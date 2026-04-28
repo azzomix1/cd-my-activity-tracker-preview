@@ -30,14 +30,32 @@ function normalizeDateForInput(dateString) {
   return toInputValue(normalized);
 }
 
+function normalizeEmployees(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
+  }
+
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
 function createInitialReportData(activity, draftData = null) {
   const report = activity?.reportData;
+  const fallbackEmployeeNames = Array.isArray(activity?.participantNames) && activity.participantNames.length > 0
+    ? activity.participantNames
+    : normalizeEmployees(activity?.person);
+  const normalizedFallbackEmployeeNames = fallbackEmployeeNames.length > 0 ? fallbackEmployeeNames : [''];
 
   if (draftData) {
     return {
       date: normalizeDateForInput(draftData.date) || normalizeDateForInput(activity?.date),
       time: draftData.time || '',
       employeeName: draftData.employeeName || activity?.person || '',
+      employeeNames: normalizeEmployees(draftData.employeeNames || draftData.employeeName || normalizedFallbackEmployeeNames),
       meetingContent: draftData.meetingContent || activity?.name || '',
       meetingFormat: draftData.meetingFormat || '',
       projects: Array.isArray(draftData.projects) ? draftData.projects : [],
@@ -51,6 +69,7 @@ function createInitialReportData(activity, draftData = null) {
     date: normalizeDateForInput(report?.date || activity?.date),
     time: report?.time || activity?.time || '',
     employeeName: report?.employeeName || activity?.person || '',
+    employeeNames: normalizeEmployees(report?.employeeNames || report?.employeeName || normalizedFallbackEmployeeNames),
     meetingContent: report?.meetingContent || activity?.name || '',
     meetingFormat: report?.meetingFormat || '',
     projects: Array.isArray(report?.projects) ? report.projects : [],
@@ -113,6 +132,17 @@ function formStateReducer(state, action) {
       value: {
         ...state.value,
         projects: action.payload,
+      },
+    };
+  }
+
+  if (action.type === 'updateEmployees') {
+    return {
+      ...state,
+      value: {
+        ...state.value,
+        employeeNames: action.payload,
+        employeeName: action.payload.join(', '),
       },
     };
   }
@@ -198,6 +228,30 @@ function ReportModal({
     });
   }
 
+  function handleEmployeeChange(index, value) {
+    dispatchFormState({
+      type: 'updateEmployees',
+      payload: formData.employeeNames.map((employeeName, employeeIndex) => (
+        employeeIndex === index ? value : employeeName
+      )),
+    });
+  }
+
+  function handleAddEmployee() {
+    dispatchFormState({
+      type: 'updateEmployees',
+      payload: [...formData.employeeNames, ''],
+    });
+  }
+
+  function handleRemoveEmployee(index) {
+    const nextEmployees = formData.employeeNames.filter((_, employeeIndex) => employeeIndex !== index);
+    dispatchFormState({
+      type: 'updateEmployees',
+      payload: nextEmployees.length > 0 ? nextEmployees : [''],
+    });
+  }
+
   function handleAddProject() {
     dispatchFormState({
       type: 'updateProjects',
@@ -237,7 +291,8 @@ function ReportModal({
     await onSave({
       date: fromInputDateFormat(formData.date),
       time: formData.time.trim(),
-      employeeName: formData.employeeName.trim(),
+      employeeName: formData.employeeNames.map((item) => item.trim()).filter(Boolean).join(', '),
+      employeeNames: formData.employeeNames.map((item) => item.trim()).filter(Boolean),
       meetingContent: formData.meetingContent.trim(),
       meetingFormat: formData.meetingFormat.trim(),
       projects: formData.projects.map((project) => project.trim()).filter(Boolean),
@@ -292,17 +347,43 @@ function ReportModal({
           </div>
 
           <div className="form-group">
-            <label htmlFor="report-employee">ФИО сотрудника *</label>
-            <input
-              type="text"
-              id="report-employee"
-              name="employeeName"
-              value={formData.employeeName}
-              onChange={handleChange}
-              placeholder="Например, Антон"
-              disabled={isBusy}
-              required
-            />
+            <div className="report-modal__projects-header">
+              <label>Сотрудники *</label>
+              <button
+                type="button"
+                className="btn btn-edit report-modal__project-add"
+                onClick={handleAddEmployee}
+                disabled={isBusy}
+              >
+                <Plus size={14} aria-hidden="true" />
+                Добавить сотрудника
+              </button>
+            </div>
+
+            <div className="report-modal__projects-list">
+              {formData.employeeNames.map((employeeName, index) => (
+                <div key={`employee-${index}`} className="report-modal__project-row">
+                  <input
+                    type="text"
+                    value={employeeName}
+                    onChange={(event) => handleEmployeeChange(index, event.target.value)}
+                    placeholder={`Сотрудник ${index + 1}`}
+                    disabled={isBusy}
+                    required={index === 0}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-cancel report-modal__project-remove"
+                    onClick={() => handleRemoveEmployee(index)}
+                    disabled={isBusy || formData.employeeNames.length <= 1}
+                    aria-label={`Удалить сотрудника ${index + 1}`}
+                  >
+                    <X size={14} aria-hidden="true" />
+                    Убрать
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="form-group">

@@ -68,12 +68,23 @@ function isPrivilegedRole(role) {
  * - line_manager: свои + сотрудники из иерархии + пустое значение
  * - full_manager/administrator: любое значение
  */
-export async function canAssignActivityPerson({ auth, targetEmployeeUserId, targetPerson }) {
+export async function canAssignActivityPerson({ auth, targetEmployeeUserId, targetPerson, targetEmployeeUserIds = [], targetPersons = [] }) {
   const normalizedRole = normalizeForComparison(auth?.role);
   const normalizedTarget = normalizeForComparison(targetPerson);
   const normalizedTargetEmployeeUserId = normalizeValue(targetEmployeeUserId);
+  const normalizedTargetEmployeeUserIds = Array.isArray(targetEmployeeUserIds)
+    ? targetEmployeeUserIds.map((item) => normalizeValue(item)).filter(Boolean)
+    : [];
+  const normalizedTargetPersons = Array.isArray(targetPersons)
+    ? targetPersons.map((item) => normalizeForComparison(item)).filter(Boolean)
+    : [];
 
-  const targetDefined = Boolean(normalizedTarget || normalizedTargetEmployeeUserId);
+  const targetDefined = Boolean(
+    normalizedTarget
+    || normalizedTargetEmployeeUserId
+    || normalizedTargetEmployeeUserIds.length > 0
+    || normalizedTargetPersons.length > 0
+  );
 
   if (!targetDefined) {
     return { allowed: true };
@@ -84,6 +95,25 @@ export async function canAssignActivityPerson({ auth, targetEmployeeUserId, targ
   }
 
   if (normalizedRole === 'employee') {
+    const requestedIds = normalizedTargetEmployeeUserIds.length > 0
+      ? normalizedTargetEmployeeUserIds
+      : (normalizedTargetEmployeeUserId ? [normalizedTargetEmployeeUserId] : []);
+    if (requestedIds.length > 0) {
+      const ownUserId = String(auth?.userId || '').trim();
+      const allowedByIds = requestedIds.every((item) => item === ownUserId);
+
+      return {
+        allowed: allowedByIds,
+        reason: allowedByIds
+          ? ''
+          : 'Сотрудник может назначать мероприятие только на себя или без сотрудника.',
+      };
+    }
+
+    const requestedPersons = normalizedTargetPersons.length > 0
+      ? normalizedTargetPersons
+      : (normalizedTarget ? [normalizedTarget] : []);
+
     if (normalizedTargetEmployeeUserId) {
       const allowedById = normalizedTargetEmployeeUserId === String(auth?.userId || '').trim();
 
@@ -96,7 +126,7 @@ export async function canAssignActivityPerson({ auth, targetEmployeeUserId, targ
     }
 
     const ownAliases = buildUserAliases(auth);
-    const allowed = ownAliases.has(normalizedTarget);
+    const allowed = requestedPersons.every((item) => ownAliases.has(item));
 
     return {
       allowed,
@@ -110,6 +140,22 @@ export async function canAssignActivityPerson({ auth, targetEmployeeUserId, targ
     const ownAliases = buildUserAliases(auth);
     const directReports = await listDirectReports(auth.userId);
     const directReportIds = new Set(directReports.map((employee) => String(employee.id)));
+
+    const requestedIds = normalizedTargetEmployeeUserIds.length > 0
+      ? normalizedTargetEmployeeUserIds
+      : (normalizedTargetEmployeeUserId ? [normalizedTargetEmployeeUserId] : []);
+
+    if (requestedIds.length > 0) {
+      const ownUserId = String(auth?.userId || '').trim();
+      const allowedByIds = requestedIds.every((item) => item === ownUserId || directReportIds.has(item));
+
+      return {
+        allowed: allowedByIds,
+        reason: allowedByIds
+          ? ''
+          : 'Линейный руководитель может назначать мероприятие только себе, своим сотрудникам или без сотрудника.',
+      };
+    }
 
     if (normalizedTargetEmployeeUserId) {
       const ownUserId = String(auth?.userId || '').trim();
@@ -130,7 +176,10 @@ export async function canAssignActivityPerson({ auth, targetEmployeeUserId, targ
 
     ownAliases.forEach((alias) => reportAliases.add(alias));
 
-    const allowed = reportAliases.has(normalizedTarget);
+    const requestedPersons = normalizedTargetPersons.length > 0
+      ? normalizedTargetPersons
+      : (normalizedTarget ? [normalizedTarget] : []);
+    const allowed = requestedPersons.every((item) => reportAliases.has(item));
 
     return {
       allowed,

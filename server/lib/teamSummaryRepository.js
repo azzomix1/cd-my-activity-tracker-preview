@@ -28,7 +28,7 @@ function buildIntegerJsonbMetricExpression(columnName, fieldName) {
 
 function buildActivityWhereClause(employeeUserIds, startDate, endDate) {
   const params = [employeeUserIds];
-  const conditions = ['a.employee_user_id = any($1::text[])'];
+  const conditions = ['ap.employee_user_id = any($1::text[])'];
 
   if (startDate) {
     params.push(startDate);
@@ -124,11 +124,12 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
         coalesce(sum(case when r.activity_id is not null then ${subscriptionsMetric} else 0 end), 0)::int as telegram_subscriptions_total
       from unnest($1::text[]) as scope(employee_user_id)
       join app_users u on u.id = scope.employee_user_id
+      left join activity_participants ap on ap.employee_user_id = u.id
       left join activities a
-        on a.employee_user_id = u.id
-       and ${whereClause.replaceAll('a.employee_user_id = any($1::text[]) and ', '').replace('a.employee_user_id = any($1::text[])', '1 = 1')}
-      left join activity_reports r on r.activity_id = a.id
-      left join activity_report_drafts d on d.activity_id = a.id
+        on a.id = ap.activity_id
+       and ${whereClause.replaceAll('ap.employee_user_id = any($1::text[]) and ', '').replace('ap.employee_user_id = any($1::text[])', '1 = 1')}
+      left join activity_reports r on r.activity_id = a.id and r.employee_user_id = u.id
+      left join activity_report_drafts d on d.activity_id = a.id and d.employee_user_id = u.id
       group by u.id, u.email, u.display_name
       order by missing_reports desc, total_activities desc, u.display_name asc, u.email asc
     `,
@@ -139,10 +140,12 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
     `
       with scoped_reports as (
         select
-          a.employee_user_id,
+          ap.employee_user_id,
           r.report_data
         from activities a
+        join activity_participants ap on ap.activity_id = a.id
         join activity_reports r on r.activity_id = a.id
+          and r.employee_user_id = ap.employee_user_id
         where ${whereClause}
       ),
       exploded_projects as (
@@ -176,7 +179,7 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
     `
       select
         a.id as activity_id,
-        a.employee_user_id,
+        ap.employee_user_id,
         coalesce(u.display_name, u.email, a.person, '') as employee_display_name,
         coalesce(u.email, '') as employee_email,
         to_char(a.event_date, 'DD.MM.YYYY') as event_date,
@@ -188,8 +191,9 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
         a.visibility,
         r.report_data
       from activities a
-      join activity_reports r on r.activity_id = a.id
-      left join app_users u on u.id = a.employee_user_id
+      join activity_participants ap on ap.activity_id = a.id
+      join activity_reports r on r.activity_id = a.id and r.employee_user_id = ap.employee_user_id
+      left join app_users u on u.id = ap.employee_user_id
       where ${whereClause}
       order by a.event_date desc, a.event_time desc nulls last, a.name asc
       limit 200

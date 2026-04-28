@@ -198,11 +198,27 @@ function buildUserAliases(user) {
 }
 
 function activityBelongsToUser(activity, user) {
+  const participantUserIds = Array.isArray(activity?.participantUserIds)
+    ? activity.participantUserIds.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
   const activityEmployeeUserId = String(activity?.employeeUserId || '').trim();
   const userId = String(user?.id || '').trim();
 
+  if (participantUserIds.length > 0 && userId) {
+    return participantUserIds.includes(userId);
+  }
+
   if (activityEmployeeUserId && userId) {
     return activityEmployeeUserId === userId;
+  }
+
+  const participantNames = Array.isArray(activity?.participantNames)
+    ? activity.participantNames.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+
+  if (participantNames.length > 0) {
+    const aliases = buildUserAliases(user);
+    return participantNames.some((item) => aliases.has(item));
   }
 
   const activityPerson = String(activity?.person || '').trim().toLowerCase();
@@ -751,8 +767,16 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
 
   const myActivities = useMemo(
     () => activities.filter((activity) => {
-      const employeeUserId = String(activity.employeeUserId || '').trim();
       const currentUserId = String(currentUser?.id || '').trim();
+      const participantUserIds = Array.isArray(activity.participantUserIds)
+        ? activity.participantUserIds.map((item) => String(item || '').trim()).filter(Boolean)
+        : [];
+
+      if (participantUserIds.length > 0 && currentUserId) {
+        return participantUserIds.includes(currentUserId);
+      }
+
+      const employeeUserId = String(activity.employeeUserId || '').trim();
 
       if (employeeUserId && currentUserId) {
         return employeeUserId === currentUserId;
