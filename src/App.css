@@ -3928,6 +3928,18 @@ body[data-theme] .theme-switch:hover {
   color: var(--theme-switch-text);
 }
 
+body[data-theme] .feedback-trigger {
+  background: var(--theme-switch-bg);
+  border-color: var(--theme-switch-border);
+  color: var(--theme-switch-text);
+}
+
+body[data-theme] .feedback-trigger:hover,
+body[data-theme] .feedback-trigger--active {
+  background: var(--theme-switch-hover-bg);
+  color: var(--theme-switch-text);
+}
+
 body[data-theme] .btn {
   background: var(--theme-btn-bg);
   border-color: var(--theme-btn-border);
@@ -4171,48 +4183,49 @@ body[data-theme] .report-modal__projects-empty {
 /* --- Feedback widget ------------------------------------------------------- */
 
 .feedback-widget {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1200;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
-.feedback-fab {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: none;
-  background: var(--color-accent, #4a7fa5);
-  color: #fff;
-  font-size: 20px;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  display: flex;
+.feedback-trigger {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  transition: background 0.2s, transform 0.15s;
-  flex-shrink: 0;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(186, 197, 255, 0.38);
+  background: linear-gradient(140deg, rgba(45, 51, 97, 0.56), rgba(32, 36, 73, 0.48));
+  color: #deebff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 18px rgba(7, 9, 28, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: background 0.15s, color 0.15s;
 }
-.feedback-fab:hover {
-  background: var(--color-accent-hover, #3a6a8a);
-  transform: scale(1.08);
+.feedback-trigger:hover {
+  background: linear-gradient(140deg, rgba(57, 65, 120, 0.62), rgba(38, 45, 86, 0.58));
+  color: #f4f9ff;
 }
-.feedback-fab--active {
-  background: var(--color-text-muted, #888);
-  font-size: 14px;
+.feedback-trigger--active {
+  background: linear-gradient(140deg, rgba(57, 65, 120, 0.62), rgba(38, 45, 86, 0.58));
+  color: #f4f9ff;
 }
 
 .feedback-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
   background: var(--color-surface, #fff);
   border: 1px solid var(--color-border, #ddd);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   width: 320px;
   overflow: hidden;
+  z-index: 1200;
   animation: feedback-slide-in 0.18s ease;
 }
 @keyframes feedback-slide-in {
@@ -4332,6 +4345,5 @@ body[data-theme] .report-modal__projects-empty {
 }
 
 @media (max-width: 480px) {
-  .feedback-widget { bottom: 16px; right: 16px; }
-  .feedback-panel { width: calc(100vw - 32px); }
+  .feedback-panel { width: calc(100vw - 32px); right: -8px; }
 }

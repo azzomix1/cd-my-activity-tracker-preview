@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { MessageSquare } from 'lucide-react';
 import { sendFeedbackToApi } from '../services/feedbackApi';
 
 const MAX_LENGTH = 2000;
@@ -80,6 +81,17 @@ export default function FeedbackButton() {
 
   return (
     <div className="feedback-widget" ref={panelRef}>
+      <button
+        type="button"
+        className={`feedback-trigger${isOpen ? ' feedback-trigger--active' : ''}`}
+        onClick={isOpen ? close : open}
+        aria-label="Обратная связь"
+        title="Оставить обратную связь"
+      >
+        <MessageSquare size={14} aria-hidden="true" />
+        <span>Обратная связь</span>
+      </button>
+
       {isOpen && (
         <div className="feedback-panel" role="dialog" aria-modal="true" aria-label="Обратная связь">
           <div className="feedback-panel__header">
@@ -137,16 +149,6 @@ export default function FeedbackButton() {
           )}
         </div>
       )}
-
-      <button
-        type="button"
-        className={`feedback-fab${isOpen ? ' feedback-fab--active' : ''}`}
-        onClick={isOpen ? close : open}
-        aria-label="Обратная связь"
-        title="Оставить обратную связь"
-      >
-        {isOpen ? '✕' : '💬'}
-      </button>
     </div>
   );
 }

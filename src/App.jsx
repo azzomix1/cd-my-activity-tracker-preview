@@ -725,14 +725,17 @@ function App() {
             </span>
           )}
           {isAuthenticated && (
-            <button
-              type="button"
-              className="auth-logout-btn"
-              onClick={handleLogout}
-              disabled={isAuthSubmitting}
-            >
-              Выйти
-            </button>
+            <>
+              <FeedbackButton />
+              <button
+                type="button"
+                className="auth-logout-btn"
+                onClick={handleLogout}
+                disabled={isAuthSubmitting}
+              >
+                Выйти
+              </button>
+            </>
           )}
           <button
             className="theme-switch"
@@ -1017,8 +1020,6 @@ function App() {
           </button>
         </div>
       )}
-
-      {isAuthenticated && <FeedbackButton />}
 
       {deleteConfirmId && (
         <div className="delete-confirm-overlay" role="dialog" aria-modal="true" aria-label="Подтверждение удаления">
