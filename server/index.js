@@ -30,9 +30,17 @@ import {
   deleteObject,
 } from './lib/objectsRepository.js';
 import {
+  createDraftStartedNotifications,
+  createReportCompletedNotifications,
+  listNotificationsForUser,
+  markAllNotificationsAsRead,
+} from './lib/notificationsRepository.js';
+import {
   deleteActivityReport,
   deleteActivityReportDraft,
+  getActivityReport,
   getReportsSnapshot,
+  getActivityReportDraft,
   upsertActivityReport,
   upsertActivityReportDraft,
   userCanManageActivityReport,
@@ -431,14 +439,19 @@ app.get('/api/reports', requireAuth, async (_request, response) => {
 
 app.put('/api/reports/:activityId', requireAuth, async (request, response) => {
   try {
-    const employeeUserId = String(request.auth.userId || '').trim();
-    const allowed = await userCanManageActivityReport(request.params.activityId, employeeUserId, request.auth);
+    const allowed = await userCanManageActivityReport(request.params.activityId, request.auth);
     if (!allowed) {
       response.status(403).json({ success: false, error: 'Недостаточно прав для заполнения отчета по этому мероприятию.' });
       return;
     }
 
-    const item = await upsertActivityReport(request.params.activityId, employeeUserId, request.body?.report || {});
+    const { item, wasCreated } = await upsertActivityReport(request.params.activityId, request.body?.report || {}, request.auth);
+    await deleteActivityReportDraft(request.params.activityId);
+
+    if (wasCreated) {
+      await createReportCompletedNotifications(request.params.activityId, request.auth);
+    }
+
     response.json({ success: true, item });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Failed to save report.' });
@@ -447,7 +460,13 @@ app.put('/api/reports/:activityId', requireAuth, async (request, response) => {
 
 app.delete('/api/reports/:activityId', requireAuth, async (request, response) => {
   try {
-    await deleteActivityReport(request.params.activityId, request.auth.userId);
+    const allowed = await userCanManageActivityReport(request.params.activityId, request.auth);
+    if (!allowed) {
+      response.status(403).json({ success: false, error: 'Недостаточно прав для удаления отчета по этому мероприятию.' });
+      return;
+    }
+
+    await deleteActivityReport(request.params.activityId);
     response.json({ success: true });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Failed to delete report.' });
@@ -456,14 +475,20 @@ app.delete('/api/reports/:activityId', requireAuth, async (request, response) =>
 
 app.put('/api/report-drafts/:activityId', requireAuth, async (request, response) => {
   try {
-    const employeeUserId = String(request.auth.userId || '').trim();
-    const allowed = await userCanManageActivityReport(request.params.activityId, employeeUserId, request.auth);
+    const allowed = await userCanManageActivityReport(request.params.activityId, request.auth);
     if (!allowed) {
       response.status(403).json({ success: false, error: 'Недостаточно прав для сохранения черновика отчета по этому мероприятию.' });
       return;
     }
 
-    const item = await upsertActivityReportDraft(request.params.activityId, employeeUserId, request.body?.draft || {});
+    const existingReport = await getActivityReport(request.params.activityId);
+    const existingDraft = await getActivityReportDraft(request.params.activityId);
+    const { item } = await upsertActivityReportDraft(request.params.activityId, request.body?.draft || {}, request.auth);
+
+    if (!existingReport && !existingDraft) {
+      await createDraftStartedNotifications(request.params.activityId, request.auth);
+    }
+
     response.json({ success: true, item });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Failed to save report draft.' });
@@ -472,10 +497,34 @@ app.put('/api/report-drafts/:activityId', requireAuth, async (request, response)
 
 app.delete('/api/report-drafts/:activityId', requireAuth, async (request, response) => {
   try {
-    await deleteActivityReportDraft(request.params.activityId, request.auth.userId);
+    const allowed = await userCanManageActivityReport(request.params.activityId, request.auth);
+    if (!allowed) {
+      response.status(403).json({ success: false, error: 'Недостаточно прав для удаления черновика отчета по этому мероприятию.' });
+      return;
+    }
+
+    await deleteActivityReportDraft(request.params.activityId);
     response.json({ success: true });
   } catch (error) {
     response.status(400).json({ success: false, error: error.message || 'Failed to delete report draft.' });
+  }
+});
+
+app.get('/api/notifications', requireAuth, async (request, response) => {
+  try {
+    const items = await listNotificationsForUser(request.auth.userId);
+    response.json({ success: true, items });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось загрузить уведомления.' });
+  }
+});
+
+app.put('/api/notifications/read-all', requireAuth, async (request, response) => {
+  try {
+    const updatedCount = await markAllNotificationsAsRead(request.auth.userId);
+    response.json({ success: true, updatedCount });
+  } catch (error) {
+    response.status(400).json({ success: false, error: error.message || 'Не удалось отметить уведомления прочитанными.' });
   }
 });
 

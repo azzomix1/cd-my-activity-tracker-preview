@@ -85,8 +85,8 @@ export function useActivityReports({ enabled = false, currentUserId = '' } = {})
     }
 
     const reportKey = buildReportOwnerKey(activityId, currentUserId);
-    if (!activityId || !currentUserId) {
-      return { success: false, error: 'Требуется идентификатор сотрудника для отчета.' };
+    if (!activityId) {
+      return { success: false, error: 'Требуется идентификатор мероприятия для отчета.' };
     }
 
     const normalizedReport = normalizeReportData({
@@ -137,8 +137,8 @@ export function useActivityReports({ enabled = false, currentUserId = '' } = {})
     }
 
     const reportKey = buildReportOwnerKey(activityId, currentUserId);
-    if (!activityId || !currentUserId) {
-      return { success: false, error: 'Требуется идентификатор сотрудника для черновика.' };
+    if (!activityId) {
+      return { success: false, error: 'Требуется идентификатор мероприятия для черновика.' };
     }
 
     const normalizedDraft = normalizeReportDraftData({
@@ -168,7 +168,7 @@ export function useActivityReports({ enabled = false, currentUserId = '' } = {})
     const normalizedActivityId = String(activityId || '').trim();
     const reportKey = buildReportOwnerKey(normalizedActivityId, currentUserId);
 
-    if (!normalizedActivityId || !currentUserId) {
+    if (!normalizedActivityId) {
       return;
     }
 
@@ -248,7 +248,7 @@ export function useActivityReports({ enabled = false, currentUserId = '' } = {})
     const normalizedActivityId = String(activityId || '').trim();
     const reportKey = buildReportOwnerKey(normalizedActivityId, currentUserId);
 
-    if (!normalizedActivityId || !currentUserId) {
+    if (!normalizedActivityId) {
       return { success: false, error: 'Activity id is required.' };
     }
 

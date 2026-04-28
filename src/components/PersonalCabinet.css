@@ -639,6 +639,27 @@
   box-shadow: 0 4px 12px rgba(17, 25, 38, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+.cabinet__reminder-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(117, 170, 232, 0.42);
+  background: rgba(223, 239, 255, 0.74);
+  color: #1f5d99;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(17, 25, 38, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.cabinet__reminder-action:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
 .cabinet__reminder--primary {
   color: #1f5d99;
   background: rgba(223, 239, 255, 0.74);

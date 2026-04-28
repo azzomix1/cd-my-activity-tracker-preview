@@ -310,7 +310,7 @@ function App() {
 
   const activitiesWithReports = useMemo(
     () => activities.map((activity) => {
-      const reportKey = buildReportOwnerKey(activity.id, session.user?.id || '');
+      const reportKey = buildReportOwnerKey(activity.id);
       const reportData = reportsByActivityId[reportKey] || null;
       const reportDraft = reportDraftsByActivityId[reportKey] || null;
 
@@ -322,7 +322,7 @@ function App() {
         reportFilled: Boolean(reportData),
       };
     }),
-    [activities, reportDraftsByActivityId, reportsByActivityId, session.user?.id],
+    [activities, reportDraftsByActivityId, reportsByActivityId],
   );
 
   useEffect(() => {
@@ -348,14 +348,14 @@ function App() {
     async function migrateLegacyReportState() {
       try {
         for (const [activityId, reportData] of reportEntries) {
-          const reportKey = buildReportOwnerKey(activityId, session.user?.id || '');
+          const reportKey = buildReportOwnerKey(activityId);
           if (!reportsByActivityId[reportKey]) {
             await saveReport(activityId, reportData);
           }
         }
 
         for (const [activityId, draftData] of draftEntries) {
-          const reportKey = buildReportOwnerKey(activityId, session.user?.id || '');
+          const reportKey = buildReportOwnerKey(activityId);
           if (!reportDraftsByActivityId[reportKey] && !reportsByActivityId[reportKey]) {
             await upsertDraft(activityId, draftData);
           }
@@ -369,7 +369,7 @@ function App() {
     }
 
     migrateLegacyReportState();
-  }, [activities, isReportsLoading, reportDraftsByActivityId, reportsByActivityId, saveReport, session.user?.id, upsertDraft]);
+  }, [activities, isReportsLoading, reportDraftsByActivityId, reportsByActivityId, saveReport, upsertDraft]);
 
   // Подсказки для автодополнения
   const suggestions = useMemo(() => ({
@@ -1000,7 +1000,7 @@ function App() {
           key={reportModalInstanceKey}
           isOpen={isReportModalOpen}
           activity={reportActivity}
-          draftData={reportActivity ? reportDraftsByActivityId[buildReportOwnerKey(reportActivity.id, session.user?.id || '')] || null : null}
+          draftData={reportActivity ? reportDraftsByActivityId[buildReportOwnerKey(reportActivity.id)] || null : null}
           onClose={handleReportModalClose}
           onDraftChange={handleReportDraftChange}
           onDiscardDraft={handleReportDraftDiscard}

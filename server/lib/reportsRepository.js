@@ -47,8 +47,7 @@ function normalizeReportPayload(payload = {}, preserveEmptyProjects = false) {
 
 function mapRowsToDictionary(rows, fieldName) {
   return rows.reduce((result, row) => {
-    const compositeKey = `${String(row.activity_id)}::${String(row.employee_user_id)}`;
-    result[compositeKey] = row[fieldName];
+    result[String(row.activity_id)] = row[fieldName];
     return result;
   }, {});
 }
@@ -67,13 +66,13 @@ export async function getReportsSnapshot() {
   const [reportsResult, draftsResult] = await Promise.all([
     query(
       `
-        select activity_id, employee_user_id, report_data
+        select activity_id, report_data
         from activity_reports
       `,
     ),
     query(
       `
-        select activity_id, employee_user_id, draft_data
+        select activity_id, draft_data
         from activity_report_drafts
       `,
     ),
@@ -85,20 +84,41 @@ export async function getReportsSnapshot() {
   };
 }
 
-export async function userCanManageActivityReport(activityId, employeeUserId, auth) {
+function normalizeActor(auth = {}) {
+  const email = normalizeString(auth.email);
+  const displayName = normalizeString(auth.displayName) || email || 'Сотрудник';
+
+  return {
+    userId: normalizeString(auth.userId),
+    displayName,
+    email,
+  };
+}
+
+function applyActorMetadata(reportPayload, auth, metadata) {
+  const actor = normalizeActor(auth);
+  const now = new Date().toISOString();
+
+  return {
+    ...reportPayload,
+    updatedAt: now,
+    lastUpdatedByUserId: actor.userId,
+    lastUpdatedByDisplayName: actor.displayName,
+    lastUpdatedByEmail: actor.email,
+    ...metadata,
+  };
+}
+
+export async function userCanManageActivityReport(activityId, auth) {
   const normalizedActivityId = normalizeActivityId(activityId);
-  const normalizedEmployeeUserId = String(employeeUserId || '').trim();
-  if (!normalizedEmployeeUserId) {
+  const actor = normalizeActor(auth);
+  if (!actor.userId) {
     return false;
   }
 
   const role = String(auth?.role || '').trim().toLowerCase();
   if (role === 'administrator' || role === 'full_manager') {
     return true;
-  }
-
-  if (normalizedEmployeeUserId !== String(auth?.userId || '').trim()) {
-    return false;
   }
 
   const result = await query(
@@ -109,68 +129,126 @@ export async function userCanManageActivityReport(activityId, employeeUserId, au
         and employee_user_id = $2
       limit 1
     `,
-    [normalizedActivityId, normalizedEmployeeUserId],
+    [normalizedActivityId, actor.userId],
   );
 
   return result.rowCount > 0;
 }
 
-export async function upsertActivityReport(activityId, employeeUserId, reportData) {
+export async function getActivityReport(activityId) {
   const normalizedActivityId = normalizeActivityId(activityId);
-  const normalizedEmployeeUserId = String(employeeUserId || '').trim();
-  if (!normalizedEmployeeUserId) {
-    throw new Error('Employee user id is required.');
-  }
-  const normalizedReport = normalizeReportPayload(reportData, false);
+  const result = await query(
+    `
+      select report_data
+      from activity_reports
+      where activity_id = $1
+      limit 1
+    `,
+    [normalizedActivityId],
+  );
+
+  return result.rows[0]?.report_data || null;
+}
+
+export async function getActivityReportDraft(activityId) {
+  const normalizedActivityId = normalizeActivityId(activityId);
+  const result = await query(
+    `
+      select draft_data
+      from activity_report_drafts
+      where activity_id = $1
+      limit 1
+    `,
+    [normalizedActivityId],
+  );
+
+  return result.rows[0]?.draft_data || null;
+}
+
+export async function upsertActivityReport(activityId, reportData, auth) {
+  const normalizedActivityId = normalizeActivityId(activityId);
+  const existingReport = await getActivityReport(normalizedActivityId);
+  const actor = normalizeActor(auth);
+  const normalizedReport = applyActorMetadata(
+    normalizeReportPayload(reportData, false),
+    auth,
+    {
+      createdByUserId: normalizeString(existingReport?.createdByUserId) || actor.userId,
+      createdByDisplayName: normalizeString(existingReport?.createdByDisplayName) || actor.displayName,
+      createdByEmail: normalizeString(existingReport?.createdByEmail) || actor.email,
+      completedAt: new Date().toISOString(),
+      completedByUserId: actor.userId,
+      completedByDisplayName: actor.displayName,
+      completedByEmail: actor.email,
+    },
+  );
 
   const result = await query(
     `
-      insert into activity_reports (activity_id, employee_user_id, report_data)
-      values ($1, $2, $3::jsonb)
-      on conflict (activity_id, employee_user_id)
+      insert into activity_reports (activity_id, report_data, created_by_user_id, updated_by_user_id)
+      values ($1, $2::jsonb, $3, $4)
+      on conflict (activity_id)
       do update set
         report_data = excluded.report_data,
+        updated_by_user_id = excluded.updated_by_user_id,
         updated_at = now()
       returning report_data
     `,
-    [normalizedActivityId, normalizedEmployeeUserId, JSON.stringify(normalizedReport)],
+    [normalizedActivityId, JSON.stringify(normalizedReport), actor.userId || null, actor.userId || null],
   );
 
-  return result.rows[0]?.report_data || normalizedReport;
+  return {
+    item: result.rows[0]?.report_data || normalizedReport,
+    wasCreated: !existingReport,
+  };
 }
 
-export async function deleteActivityReport(activityId, employeeUserId) {
+export async function deleteActivityReport(activityId) {
   const normalizedActivityId = normalizeActivityId(activityId);
-  const normalizedEmployeeUserId = String(employeeUserId || '').trim();
-  await query('delete from activity_reports where activity_id = $1 and employee_user_id = $2', [normalizedActivityId, normalizedEmployeeUserId]);
+  await query('delete from activity_reports where activity_id = $1', [normalizedActivityId]);
 }
 
-export async function upsertActivityReportDraft(activityId, employeeUserId, draftData) {
+export async function upsertActivityReportDraft(activityId, draftData, auth) {
   const normalizedActivityId = normalizeActivityId(activityId);
-  const normalizedEmployeeUserId = String(employeeUserId || '').trim();
-  if (!normalizedEmployeeUserId) {
-    throw new Error('Employee user id is required.');
-  }
-  const normalizedDraft = normalizeReportPayload(draftData, true);
+  const existingDraft = await getActivityReportDraft(normalizedActivityId);
+  const actor = normalizeActor(auth);
+  const now = new Date().toISOString();
+  const normalizedDraft = applyActorMetadata(
+    normalizeReportPayload(draftData, true),
+    auth,
+    {
+      draftStartedAt: normalizeString(existingDraft?.draftStartedAt) || now,
+      draftStartedByUserId: normalizeString(existingDraft?.draftStartedByUserId) || actor.userId,
+      draftStartedByDisplayName: normalizeString(existingDraft?.draftStartedByDisplayName) || actor.displayName,
+      draftStartedByEmail: normalizeString(existingDraft?.draftStartedByEmail) || actor.email,
+      draftUpdatedAt: now,
+      draftUpdatedByUserId: actor.userId,
+      draftUpdatedByDisplayName: actor.displayName,
+      draftUpdatedByEmail: actor.email,
+    },
+  );
 
   const result = await query(
     `
-      insert into activity_report_drafts (activity_id, employee_user_id, draft_data)
-      values ($1, $2, $3::jsonb)
-      on conflict (activity_id, employee_user_id)
+      insert into activity_report_drafts (activity_id, draft_data, created_by_user_id, updated_by_user_id)
+      values ($1, $2::jsonb, $3, $4)
+      on conflict (activity_id)
       do update set
         draft_data = excluded.draft_data,
+        updated_by_user_id = excluded.updated_by_user_id,
         updated_at = now()
       returning draft_data
     `,
-    [normalizedActivityId, normalizedEmployeeUserId, JSON.stringify(normalizedDraft)],
+    [normalizedActivityId, JSON.stringify(normalizedDraft), actor.userId || null, actor.userId || null],
   );
 
-  return result.rows[0]?.draft_data || normalizedDraft;
+  return {
+    item: result.rows[0]?.draft_data || normalizedDraft,
+    wasCreated: !existingDraft,
+  };
 }
 
-export async function deleteActivityReportDraft(activityId, employeeUserId) {
+export async function deleteActivityReportDraft(activityId) {
   const normalizedActivityId = normalizeActivityId(activityId);
-  const normalizedEmployeeUserId = String(employeeUserId || '').trim();
-  await query('delete from activity_report_drafts where activity_id = $1 and employee_user_id = $2', [normalizedActivityId, normalizedEmployeeUserId]);
+  await query('delete from activity_report_drafts where activity_id = $1', [normalizedActivityId]);
 }

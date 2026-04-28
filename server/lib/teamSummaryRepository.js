@@ -128,8 +128,8 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
       left join activities a
         on a.id = ap.activity_id
        and ${whereClause.replaceAll('ap.employee_user_id = any($1::text[]) and ', '').replace('ap.employee_user_id = any($1::text[])', '1 = 1')}
-      left join activity_reports r on r.activity_id = a.id and r.employee_user_id = u.id
-      left join activity_report_drafts d on d.activity_id = a.id and d.employee_user_id = u.id
+      left join activity_reports r on r.activity_id = a.id
+      left join activity_report_drafts d on d.activity_id = a.id
       group by u.id, u.email, u.display_name
       order by missing_reports desc, total_activities desc, u.display_name asc, u.email asc
     `,
@@ -145,7 +145,6 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
         from activities a
         join activity_participants ap on ap.activity_id = a.id
         join activity_reports r on r.activity_id = a.id
-          and r.employee_user_id = ap.employee_user_id
         where ${whereClause}
       ),
       exploded_projects as (
@@ -177,11 +176,22 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
 
   const reportsResult = await query(
     `
+      with scoped_activities as (
+        select distinct
+          a.id,
+          a.event_date,
+          a.event_time,
+          a.name,
+          a.person,
+          a.objects,
+          a.event_type,
+          a.visibility
+        from activities a
+        join activity_participants ap_scope on ap_scope.activity_id = a.id
+        where ${whereClause.replaceAll('ap.', 'ap_scope.')}
+      )
       select
         a.id as activity_id,
-        ap.employee_user_id,
-        coalesce(u.display_name, u.email, a.person, '') as employee_display_name,
-        coalesce(u.email, '') as employee_email,
         to_char(a.event_date, 'DD.MM.YYYY') as event_date,
         to_char(a.event_time, 'HH24:MI:SS') as event_time,
         a.name as activity_name,
@@ -189,12 +199,13 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
         a.objects,
         a.event_type,
         a.visibility,
+        array_remove(array_agg(distinct coalesce(u.display_name, u.email, ap_all.employee_user_id)), null) as participant_names,
         r.report_data
-      from activities a
-      join activity_participants ap on ap.activity_id = a.id
-      join activity_reports r on r.activity_id = a.id and r.employee_user_id = ap.employee_user_id
-      left join app_users u on u.id = ap.employee_user_id
-      where ${whereClause}
+      from scoped_activities a
+      join activity_participants ap_all on ap_all.activity_id = a.id
+      join activity_reports r on r.activity_id = a.id
+      left join app_users u on u.id = ap_all.employee_user_id
+      group by a.id, a.event_date, a.event_time, a.name, a.person, a.objects, a.event_type, a.visibility, r.report_data
       order by a.event_date desc, a.event_time desc nulls last, a.name asc
       limit 200
     `,
@@ -231,9 +242,9 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
 
     return {
       activityId: String(row.activity_id || ''),
-      employeeUserId: String(row.employee_user_id || ''),
-      employeeDisplayName: String(row.employee_display_name || ''),
-      employeeEmail: String(row.employee_email || ''),
+      employeeUserId: '',
+      employeeDisplayName: Array.isArray(row.participant_names) ? row.participant_names.filter(Boolean).join(', ') : String(row.person || ''),
+      employeeEmail: '',
       eventDate: String(row.event_date || ''),
       eventTime: String(row.event_time || '').slice(0, 5),
       activityName: String(row.activity_name || ''),
@@ -241,6 +252,7 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
       objects: String(row.objects || ''),
       eventType: String(row.event_type || 'internal'),
       visibility: String(row.visibility || 'public'),
+      participantNames: Array.isArray(row.participant_names) ? row.participant_names.filter(Boolean) : [],
       reportData,
       summary: {
         meetingContent: String(reportData.meetingContent || ''),

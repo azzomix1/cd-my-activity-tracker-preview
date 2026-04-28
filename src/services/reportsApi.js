@@ -50,6 +50,16 @@ export function normalizeReportData(reportData = {}) {
     telegramSubscriptionsCount: normalizeString(reportData.telegramSubscriptionsCount),
     comment: normalizeString(reportData.comment),
     updatedAt: normalizeString(reportData.updatedAt),
+    createdByUserId: normalizeString(reportData.createdByUserId),
+    createdByDisplayName: normalizeString(reportData.createdByDisplayName),
+    createdByEmail: normalizeString(reportData.createdByEmail),
+    lastUpdatedByUserId: normalizeString(reportData.lastUpdatedByUserId),
+    lastUpdatedByDisplayName: normalizeString(reportData.lastUpdatedByDisplayName),
+    lastUpdatedByEmail: normalizeString(reportData.lastUpdatedByEmail),
+    completedAt: normalizeString(reportData.completedAt),
+    completedByUserId: normalizeString(reportData.completedByUserId),
+    completedByDisplayName: normalizeString(reportData.completedByDisplayName),
+    completedByEmail: normalizeString(reportData.completedByEmail),
   };
 }
 
@@ -68,6 +78,17 @@ export function normalizeReportDraftData(draftData = {}) {
     telegramSubscriptionsCount: normalizeString(draftData.telegramSubscriptionsCount),
     comment: normalizeString(draftData.comment),
     updatedAt: normalizeString(draftData.updatedAt),
+    draftStartedAt: normalizeString(draftData.draftStartedAt),
+    draftStartedByUserId: normalizeString(draftData.draftStartedByUserId),
+    draftStartedByDisplayName: normalizeString(draftData.draftStartedByDisplayName),
+    draftStartedByEmail: normalizeString(draftData.draftStartedByEmail),
+    draftUpdatedAt: normalizeString(draftData.draftUpdatedAt),
+    draftUpdatedByUserId: normalizeString(draftData.draftUpdatedByUserId),
+    draftUpdatedByDisplayName: normalizeString(draftData.draftUpdatedByDisplayName),
+    draftUpdatedByEmail: normalizeString(draftData.draftUpdatedByEmail),
+    lastUpdatedByUserId: normalizeString(draftData.lastUpdatedByUserId),
+    lastUpdatedByDisplayName: normalizeString(draftData.lastUpdatedByDisplayName),
+    lastUpdatedByEmail: normalizeString(draftData.lastUpdatedByEmail),
   };
 }
 
@@ -176,5 +197,6 @@ export async function deleteReportDraftFromApi(activityId) {
 }
 
 export function buildReportOwnerKey(activityId, employeeUserId) {
-  return `${String(activityId || '').trim()}::${String(employeeUserId || '').trim()}`;
+  void employeeUserId;
+  return String(activityId || '').trim();
 }

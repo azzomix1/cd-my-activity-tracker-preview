@@ -4,6 +4,7 @@ import { getActivityAudienceLabel, isPrivateActivity, isPublicActivity } from '.
 import AdminHierarchyPanel from './AdminHierarchyPanel';
 import AdminObjectsPanel from './AdminObjectsPanel';
 import PastEventsPanel from './PastEventsPanel';
+import { fetchNotificationsFromApi, markAllNotificationsReadInApi } from '../services/notificationsApi';
 import { fetchTeamSummary, fetchTeamUsers } from '../services/teamApi';
 import { MONTHS, WEEKDAYS, getCalendarData, isToday } from '../utils/dateUtils';
 import './PersonalCabinet.css';
@@ -485,6 +486,59 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
   const [expandedTeamReportId, setExpandedTeamReportId] = useState('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [activeCabinetSection, setActiveCabinetSection] = useState(CABINET_SECTIONS.SCHEDULE);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsError, setNotificationsError] = useState('');
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
+  const [isMarkingNotificationsRead, setIsMarkingNotificationsRead] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!currentUser?.id) {
+      setNotifications([]);
+      setNotificationsError('');
+      setIsNotificationsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    async function loadNotifications() {
+      if (isMounted) {
+        setIsNotificationsLoading(true);
+      }
+
+      try {
+        const items = await fetchNotificationsFromApi();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setNotifications(items);
+        setNotificationsError('');
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setNotifications([]);
+        setNotificationsError(error.message || 'Не удалось загрузить уведомления.');
+      } finally {
+        if (isMounted) {
+          setIsNotificationsLoading(false);
+        }
+      }
+    }
+
+    loadNotifications();
+    const intervalId = window.setInterval(loadNotifications, 30000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [currentUser?.id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -673,7 +727,8 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
       }
 
       if (teamSummaryEmployeeUserId) {
-        return String(activity.employeeUserId || '').trim() === teamSummaryEmployeeUserId;
+        const selectedTeamUser = teamUsers.find((user) => user.id === teamSummaryEmployeeUserId);
+        return selectedTeamUser ? activityBelongsToUser(activity, selectedTeamUser) : false;
       }
 
       return teamUsers.some((user) => activityBelongsToUser(activity, user));
@@ -692,7 +747,9 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
       .map((activity) => ({
         activityId: String(activity.id || ''),
         employeeUserId: String(activity.employeeUserId || ''),
-        employeeDisplayName: String(activity.person || ''),
+        employeeDisplayName: Array.isArray(activity.participantNames) && activity.participantNames.length > 0
+          ? activity.participantNames.join(', ')
+          : String(activity.person || ''),
         employeeEmail: '',
         eventDate: String(activity.date || ''),
         eventTime: String(activity.time || ''),
@@ -701,6 +758,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
         objects: String(activity.objects || ''),
         eventType: String(activity.eventType || 'internal'),
         visibility: String(activity.visibility || 'public'),
+        participantNames: Array.isArray(activity.participantNames) ? activity.participantNames : [],
         reportData: activity.reportData,
         summary: {
           meetingContent: String(activity.reportData?.meetingContent || ''),
@@ -948,6 +1006,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
 
   const reminderItems = useMemo(() => {
     const items = [];
+    const unreadNotifications = notifications.filter((item) => !item.isRead);
 
     if (todayActivities.length > 0) {
       items.push({
@@ -973,8 +1032,48 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
       });
     }
 
+    unreadNotifications.slice(0, 3).forEach((notification) => {
+      items.push({
+        key: `notification-${notification.id}`,
+        tone: 'primary',
+        text: notification.message || notification.title || 'Есть новое уведомление по отчету.',
+      });
+    });
+
+    if (unreadNotifications.length > 3) {
+      const remainingCount = unreadNotifications.length - 3;
+      items.push({
+        key: 'notifications-more',
+        tone: 'neutral',
+        text: `И еще ${remainingCount} ${pluralize(remainingCount, 'уведомление', 'уведомления', 'уведомлений')}`,
+      });
+    }
+
     return items;
-  }, [activitiesWithMissingFields.length, pastMissingActivities.length, todayActivities.length]);
+  }, [activitiesWithMissingFields.length, notifications, pastMissingActivities.length, todayActivities.length]);
+
+  const unreadNotificationsCount = useMemo(
+    () => notifications.filter((item) => !item.isRead).length,
+    [notifications],
+  );
+
+  const handleMarkNotificationsRead = useCallback(async () => {
+    setIsMarkingNotificationsRead(true);
+
+    try {
+      await markAllNotificationsReadInApi();
+      setNotifications((prev) => prev.map((item) => ({
+        ...item,
+        isRead: true,
+        readAt: item.readAt || new Date().toISOString(),
+      })));
+      setNotificationsError('');
+    } catch (error) {
+      setNotificationsError(error.message || 'Не удалось отметить уведомления прочитанными.');
+    } finally {
+      setIsMarkingNotificationsRead(false);
+    }
+  }, []);
 
   // --- Вспомогательные выборки для счётчиков ---
   // --- Активный список в зависимости от фильтра ---
@@ -1322,16 +1421,27 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
               </div>
 
               <div className="cabinet__reminders">
-                {teamUsersError && (
+                {(teamUsersError || notificationsError) && (
                   <div className="cabinet__reminder cabinet__reminder--danger">
                     <BellRing size={14} aria-hidden="true" />
-                    <span>{teamUsersError}</span>
+                    <span>{teamUsersError || notificationsError}</span>
                   </div>
+                )}
+                {unreadNotificationsCount > 0 && (
+                  <button
+                    type="button"
+                    className="cabinet__reminder-action"
+                    onClick={handleMarkNotificationsRead}
+                    disabled={isMarkingNotificationsRead}
+                  >
+                    <BellRing size={14} aria-hidden="true" />
+                    <span>{isMarkingNotificationsRead ? 'Отмечаем...' : `Прочитать все (${unreadNotificationsCount})`}</span>
+                  </button>
                 )}
                 {reminderItems.length === 0 ? (
                   <div className="cabinet__reminder cabinet__reminder--neutral">
                     <BellRing size={14} aria-hidden="true" />
-                    <span>Срочных напоминаний нет.</span>
+                    <span>{isNotificationsLoading ? 'Проверяем уведомления...' : 'Срочных напоминаний нет.'}</span>
                   </div>
                 ) : (
                   reminderItems.map((item) => (

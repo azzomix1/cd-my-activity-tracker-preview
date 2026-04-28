@@ -1,0 +1,66 @@
+[
+  {
+    "name": "desktop-aurora-calendar",
+    "bodyTheme": "aurora",
+    "bodyScrollWidth": 1440,
+    "bodyClientWidth": 1440,
+    "rootScrollWidth": 1440,
+    "rootClientWidth": 1440
+  },
+  {
+    "name": "desktop-aurora-cabinet",
+    "bodyTheme": "aurora",
+    "bodyScrollWidth": 1440,
+    "bodyClientWidth": 1440,
+    "rootScrollWidth": 1440,
+    "rootClientWidth": 1440
+  },
+  {
+    "name": "desktop-midnight-calendar",
+    "bodyTheme": "midnight",
+    "bodyScrollWidth": 1440,
+    "bodyClientWidth": 1440,
+    "rootScrollWidth": 1440,
+    "rootClientWidth": 1440
+  },
+  {
+    "name": "desktop-midnight-cabinet",
+    "bodyTheme": "midnight",
+    "bodyScrollWidth": 1440,
+    "bodyClientWidth": 1440,
+    "rootScrollWidth": 1440,
+    "rootClientWidth": 1440
+  },
+  {
+    "name": "mobile-aurora-calendar",
+    "bodyTheme": "aurora",
+    "bodyScrollWidth": 390,
+    "bodyClientWidth": 390,
+    "rootScrollWidth": 390,
+    "rootClientWidth": 390
+  },
+  {
+    "name": "mobile-aurora-cabinet",
+    "bodyTheme": "aurora",
+    "bodyScrollWidth": 390,
+    "bodyClientWidth": 390,
+    "rootScrollWidth": 390,
+    "rootClientWidth": 390
+  },
+  {
+    "name": "mobile-midnight-calendar",
+    "bodyTheme": "midnight",
+    "bodyScrollWidth": 390,
+    "bodyClientWidth": 390,
+    "rootScrollWidth": 390,
+    "rootClientWidth": 390
+  },
+  {
+    "name": "mobile-midnight-cabinet",
+    "bodyTheme": "midnight",
+    "bodyScrollWidth": 390,
+    "bodyClientWidth": 390,
+    "rootScrollWidth": 390,
+    "rootClientWidth": 390
+  }
+]
