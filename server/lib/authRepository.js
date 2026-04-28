@@ -217,7 +217,7 @@ export async function listUsersForTeamPanel({ role, userId }) {
           is_active
         from app_users
         where is_active = true
-          and role = 'employee'
+          and role in ('employee', 'line_manager')
         order by display_name asc, email asc
       `,
     );

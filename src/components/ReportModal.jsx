@@ -155,9 +155,9 @@ function ReportModal({
     }
 
     const currentSnapshot = JSON.stringify(formData);
-    const baselineSnapshot = JSON.stringify(initialFormData);
+    const baselineSnapshot = JSON.stringify(baselineFormData);
     onDraftChange(activity.id, currentSnapshot === baselineSnapshot ? null : formData);
-  }, [activity, formData, initialFormData, isOpen, onDraftChange]);
+  }, [activity, baselineFormData, formData, isOpen, onDraftChange]);
 
   useEffect(() => {
     if (!isOpen) {
