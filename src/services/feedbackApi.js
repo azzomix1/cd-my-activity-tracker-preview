@@ -9,11 +9,15 @@ const API_URL = import.meta.env.VITE_API_URL?.trim();
 export async function sendFeedbackToApi(message) {
   const token = getAuthToken();
 
+  if (!API_URL) {
+    throw new Error('Не задан адрес backend API.');
+  }
+
   if (!token) {
     throw new Error('Требуется авторизация.');
   }
 
-  const response = await fetch(`${API_URL}/api/feedback`, {
+  const response = await fetch(`${API_URL}/feedback`, {
     method: 'POST',
     cache: 'no-store',
     headers: {
