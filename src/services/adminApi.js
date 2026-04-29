@@ -132,14 +132,6 @@ export async function fetchAdminFeedback(limit = 100) {
   return Array.isArray(payload.items) ? payload.items : [];
 }
 
-export async function setFeedbackTags(id, tags) {
-  const payload = await request(`/admin/feedback/${encodeURIComponent(String(id))}/tags`, {
-    method: 'PATCH',
-    body: JSON.stringify({ tags }),
-  });
-  return payload.item;
-}
-
 export async function deleteFeedbackMessage(id) {
   await request(`/admin/feedback/${encodeURIComponent(String(id))}`, { method: 'DELETE' });
 }

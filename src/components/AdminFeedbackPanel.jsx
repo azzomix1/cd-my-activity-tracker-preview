@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { fetchAdminFeedback, setFeedbackTags, deleteFeedbackMessage } from '../services/adminApi';
+import { useEffect, useState } from 'react';
+import { fetchAdminFeedback, deleteFeedbackMessage } from '../services/adminApi';
 
 function formatDateTime(value) {
   if (!value) {
@@ -21,51 +21,10 @@ function formatDateTime(value) {
   });
 }
 
-function FeedbackItem({ item, onTagsChange, onDelete }) {
-  const [tagInput, setTagInput] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+function FeedbackItem({ item, onDelete }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [itemError, setItemError] = useState('');
-  const inputRef = useRef(null);
-
-  async function handleAddTag() {
-    const tag = tagInput.trim().toLowerCase();
-    if (!tag) return;
-    if (item.tags.includes(tag)) {
-      setTagInput('');
-      return;
-    }
-
-    const nextTags = [...item.tags, tag];
-    setIsSaving(true);
-    setItemError('');
-
-    try {
-      const updated = await setFeedbackTags(item.id, nextTags);
-      onTagsChange(item.id, updated.tags);
-      setTagInput('');
-    } catch (err) {
-      setItemError(err.message || 'Не удалось сохранить тег.');
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function handleRemoveTag(tag) {
-    const nextTags = item.tags.filter((t) => t !== tag);
-    setIsSaving(true);
-    setItemError('');
-
-    try {
-      const updated = await setFeedbackTags(item.id, nextTags);
-      onTagsChange(item.id, updated.tags);
-    } catch (err) {
-      setItemError(err.message || 'Не удалось удалить тег.');
-    } finally {
-      setIsSaving(false);
-    }
-  }
 
   async function handleConfirmDelete() {
     setIsDeleting(true);
@@ -90,49 +49,6 @@ function FeedbackItem({ item, onTagsChange, onDelete }) {
       </div>
 
       <div className="admin-feedback-panel__message">{item.message}</div>
-
-      <div className="admin-feedback-panel__tags">
-        {item.tags.map((tag) => (
-          <span key={tag} className="admin-feedback-panel__tag">
-            {tag}
-            <button
-              className="admin-feedback-panel__tag-remove"
-              onClick={() => handleRemoveTag(tag)}
-              disabled={isSaving}
-              title="Удалить тег"
-              aria-label={`Удалить тег ${tag}`}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-
-        <div className="admin-feedback-panel__tag-add">
-          <input
-            ref={inputRef}
-            className="admin-feedback-panel__tag-input"
-            type="text"
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddTag();
-              }
-            }}
-            placeholder="Новый тег"
-            disabled={isSaving}
-            maxLength={50}
-          />
-          <button
-            className="admin-feedback-panel__tag-btn"
-            onClick={handleAddTag}
-            disabled={isSaving || !tagInput.trim()}
-          >
-            +
-          </button>
-        </div>
-      </div>
 
       {itemError && <div className="admin-feedback-panel__item-error">{itemError}</div>}
 
@@ -208,10 +124,6 @@ export default function AdminFeedbackPanel() {
     };
   }, []);
 
-  function handleTagsChange(id, nextTags) {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, tags: nextTags } : it)));
-  }
-
   function handleDelete(id) {
     setItems((prev) => prev.filter((it) => it.id !== id));
   }
@@ -238,7 +150,6 @@ export default function AdminFeedbackPanel() {
               <FeedbackItem
                 key={item.id}
                 item={item}
-                onTagsChange={handleTagsChange}
                 onDelete={handleDelete}
               />
             ))}
