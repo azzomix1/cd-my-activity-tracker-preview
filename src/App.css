@@ -580,6 +580,47 @@
   font-size: 13px;
 }
 
+.admin-feedback-panel__body {
+  margin-top: 10px;
+}
+
+.admin-feedback-panel__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-feedback-panel__item {
+  border: 1px solid rgba(173, 194, 228, 0.4);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.78);
+  display: grid;
+  gap: 8px;
+}
+
+.admin-feedback-panel__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #4f6788;
+}
+
+.admin-feedback-panel__meta strong {
+  color: #2b486e;
+}
+
+.admin-feedback-panel__message {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #29476d;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .top-controls .view-nav {
   flex: 0 0 auto;
   margin-inline: 0;

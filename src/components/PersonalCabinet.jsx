@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowUp, BellRing, ChevronDown, CircleAlert, Clock3, FileText, Pencil, X } from 'lucide-react';
 import { getActivityAudienceLabel, isPrivateActivity, isPublicActivity } from '../auth/accessPolicy';
+import AdminFeedbackPanel from './AdminFeedbackPanel';
 import AdminHierarchyPanel from './AdminHierarchyPanel';
 import AdminObjectsPanel from './AdminObjectsPanel';
 import PastEventsPanel from './PastEventsPanel';
@@ -471,6 +472,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
   const [isPastFilledOpen, setIsPastFilledOpen] = useState(false);
   const [isHierarchyOpen, setIsHierarchyOpen] = useState(false);
   const [isObjectsOpen, setIsObjectsOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
@@ -913,17 +915,18 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
   }, [selectedPersonLabel]);
 
   useEffect(() => {
-    if (!isHierarchyOpen && !isObjectsOpen) return undefined;
+    if (!isHierarchyOpen && !isObjectsOpen && !isFeedbackOpen) return undefined;
 
     function handlePointerDown(event) {
       if (hierarchyDropdownRef.current && !hierarchyDropdownRef.current.contains(event.target)) {
         setIsHierarchyOpen(false);
         setIsObjectsOpen(false);
+        setIsFeedbackOpen(false);
       }
     }
 
     function handleEscape(event) {
-      if (event.key === 'Escape') { setIsHierarchyOpen(false); setIsObjectsOpen(false); }
+      if (event.key === 'Escape') { setIsHierarchyOpen(false); setIsObjectsOpen(false); setIsFeedbackOpen(false); }
     }
 
     document.addEventListener('pointerdown', handlePointerDown);
@@ -932,7 +935,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isHierarchyOpen, isObjectsOpen]);
+  }, [isFeedbackOpen, isHierarchyOpen, isObjectsOpen]);
 
   const pastSectionRef = useRef(null);
 
@@ -1360,7 +1363,12 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                 ))}
               </div>
 
-              <div className="cabinet__hero-nav" role="navigation" aria-label="Быстрая навигация по кабинету">
+              <div
+                className="cabinet__hero-nav"
+                role="navigation"
+                aria-label="Быстрая навигация по кабинету"
+                ref={hierarchyDropdownRef}
+              >
                 <button type="button" className="cabinet__hero-nav-btn" onClick={() => handleSectionNavigation('attention')}>
                   Фокус
                 </button>
@@ -1372,11 +1380,11 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                 </button>
 
                 {canManageHierarchy && (
-                  <div className="cabinet__hierarchy-dropdown" ref={hierarchyDropdownRef}>
+                  <div className="cabinet__hierarchy-dropdown">
                     <button
                       type="button"
                       className={`cabinet__hero-nav-btn cabinet__hero-nav-btn--hierarchy${isHierarchyOpen ? ' cabinet__hero-nav-btn--active' : ''}`}
-                      onClick={() => { setIsHierarchyOpen((prev) => !prev); setIsObjectsOpen(false); }}
+                      onClick={() => { setIsHierarchyOpen((prev) => !prev); setIsObjectsOpen(false); setIsFeedbackOpen(false); }}
                       aria-expanded={isHierarchyOpen}
                     >
                       Иерархия
@@ -1400,7 +1408,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                     <button
                       type="button"
                       className={`cabinet__hero-nav-btn cabinet__hero-nav-btn--hierarchy${isObjectsOpen ? ' cabinet__hero-nav-btn--active' : ''}`}
-                      onClick={() => { setIsObjectsOpen((prev) => !prev); setIsHierarchyOpen(false); }}
+                      onClick={() => { setIsObjectsOpen((prev) => !prev); setIsHierarchyOpen(false); setIsFeedbackOpen(false); }}
                       aria-expanded={isObjectsOpen}
                     >
                       Объекты
@@ -1414,6 +1422,30 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                     {isObjectsOpen && (
                       <div className="cabinet__hierarchy-panel">
                         <AdminObjectsPanel isReadOnly={!isAdministrator} />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {canManageHierarchy && (
+                  <div className="cabinet__hierarchy-dropdown">
+                    <button
+                      type="button"
+                      className={`cabinet__hero-nav-btn cabinet__hero-nav-btn--hierarchy${isFeedbackOpen ? ' cabinet__hero-nav-btn--active' : ''}`}
+                      onClick={() => { setIsFeedbackOpen((prev) => !prev); setIsHierarchyOpen(false); setIsObjectsOpen(false); }}
+                      aria-expanded={isFeedbackOpen}
+                    >
+                      Фидбек
+                      <ChevronDown
+                        size={12}
+                        aria-hidden="true"
+                        className={`cabinet__hierarchy-chevron${isFeedbackOpen ? ' cabinet__hierarchy-chevron--open' : ''}`}
+                      />
+                    </button>
+
+                    {isFeedbackOpen && (
+                      <div className="cabinet__hierarchy-panel">
+                        <AdminFeedbackPanel />
                       </div>
                     )}
                   </div>

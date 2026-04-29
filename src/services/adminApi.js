@@ -126,3 +126,8 @@ export async function setAdminObjectActive(id, isActive) {
 export async function deleteAdminObject(id) {
   return request(`/admin/objects/${id}`, { method: 'DELETE' });
 }
+
+export async function fetchAdminFeedback(limit = 100) {
+  const payload = await request(`/admin/feedback?limit=${encodeURIComponent(String(limit))}`);
+  return Array.isArray(payload.items) ? payload.items : [];
+}

@@ -36,6 +36,10 @@ import {
   markAllNotificationsAsRead,
 } from './lib/notificationsRepository.js';
 import {
+  createFeedbackMessage,
+  listFeedbackMessages,
+} from './lib/feedbackRepository.js';
+import {
   deleteActivityReport,
   deleteActivityReportDraft,
   getActivityReport,
@@ -373,6 +377,19 @@ app.delete('/api/admin/hierarchy', requireAuth, requireHierarchyAdmin, async (re
   }
 });
 
+app.get('/api/admin/feedback', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  try {
+    const rawLimit = Number(request.query?.limit);
+    const items = await listFeedbackMessages({
+      limit: Number.isFinite(rawLimit) ? rawLimit : 100,
+    });
+
+    response.json({ success: true, items });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось загрузить обратную связь.' });
+  }
+});
+
 app.get('/api/health', async (_request, response) => {
   try {
     await pool.query('select 1');
@@ -608,6 +625,13 @@ app.post('/api/feedback', requireAuth, async (request, response) => {
   }
 
   try {
+    await createFeedbackMessage({
+      userId: request.auth.userId,
+      senderName: request.auth.displayName || request.auth.email,
+      senderEmail: request.auth.email,
+      message,
+    });
+
     await sendFeedbackEmail({
       senderName: request.auth.displayName || request.auth.email,
       senderEmail: request.auth.email,
