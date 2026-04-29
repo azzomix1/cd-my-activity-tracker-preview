@@ -38,6 +38,8 @@ import {
 import {
   createFeedbackMessage,
   listFeedbackMessages,
+  updateFeedbackTags,
+  deleteFeedbackMessage as deleteFeedbackMessageFromDB,
 } from './lib/feedbackRepository.js';
 import {
   deleteActivityReport,
@@ -387,6 +389,33 @@ app.get('/api/admin/feedback', requireAuth, requireHierarchyAdmin, async (reques
     response.json({ success: true, items });
   } catch (error) {
     response.status(500).json({ success: false, error: error.message || 'Не удалось загрузить обратную связь.' });
+  }
+});
+
+app.patch('/api/admin/feedback/:id/tags', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  try {
+    const id = Number(request.params.id);
+    const { tags } = request.body;
+
+    if (!id) return response.status(400).json({ success: false, error: 'Некорректный ID.' });
+    if (!Array.isArray(tags)) return response.status(400).json({ success: false, error: 'tags должен быть массивом.' });
+
+    const updated = await updateFeedbackTags(id, tags);
+    response.json({ success: true, item: updated });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось обновить теги.' });
+  }
+});
+
+app.delete('/api/admin/feedback/:id', requireAuth, requireHierarchyAdmin, async (request, response) => {
+  try {
+    const id = Number(request.params.id);
+    if (!id) return response.status(400).json({ success: false, error: 'Некорректный ID.' });
+
+    await deleteFeedbackMessageFromDB(id);
+    response.json({ success: true });
+  } catch (error) {
+    response.status(500).json({ success: false, error: error.message || 'Не удалось удалить сообщение.' });
   }
 });
 

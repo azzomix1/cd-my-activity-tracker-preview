@@ -1,5 +1,13 @@
 import { query } from './db.js';
 
+function normalizeTags(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((t) => String(t || '').trim().toLowerCase())
+    .filter(Boolean)
+    .filter((t, i, arr) => arr.indexOf(t) === i);
+}
+
 function mapRow(row) {
   return {
     id: Number(row.id),
@@ -7,6 +15,7 @@ function mapRow(row) {
     senderName: String(row.sender_name || ''),
     senderEmail: String(row.sender_email || ''),
     message: String(row.message || ''),
+    tags: Array.isArray(row.tags) ? row.tags : [],
     createdAt: row.created_at,
   };
 }
@@ -22,7 +31,7 @@ export async function createFeedbackMessage({ userId = '', senderName = '', send
     `
       insert into feedback_messages (user_id, sender_name, sender_email, message)
       values (nullif($1, ''), $2, $3, $4)
-      returning id, user_id, sender_name, sender_email, message, created_at
+      returning id, user_id, sender_name, sender_email, message, tags, created_at
     `,
     [
       String(userId || '').trim(),
@@ -40,7 +49,7 @@ export async function listFeedbackMessages({ limit = 100 } = {}) {
 
   const result = await query(
     `
-      select id, user_id, sender_name, sender_email, message, created_at
+      select id, user_id, sender_name, sender_email, message, tags, created_at
       from feedback_messages
       order by created_at desc
       limit $1
@@ -49,4 +58,29 @@ export async function listFeedbackMessages({ limit = 100 } = {}) {
   );
 
   return result.rows.map(mapRow);
+}
+
+export async function updateFeedbackTags(id, tags) {
+  const normalizedId = Number(id);
+  if (!normalizedId) throw new Error('ID сообщения обязателен.');
+
+  const result = await query(
+    `
+      update feedback_messages
+      set tags = $1
+      where id = $2
+      returning id, user_id, sender_name, sender_email, message, tags, created_at
+    `,
+    [normalizeTags(tags), normalizedId],
+  );
+
+  if (result.rows.length === 0) throw new Error('Сообщение не найдено.');
+  return mapRow(result.rows[0]);
+}
+
+export async function deleteFeedbackMessage(id) {
+  const normalizedId = Number(id);
+  if (!normalizedId) throw new Error('ID сообщения обязателен.');
+
+  await query('delete from feedback_messages where id = $1', [normalizedId]);
 }

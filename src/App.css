@@ -621,6 +621,144 @@
   word-break: break-word;
 }
 
+.admin-feedback-panel__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.admin-feedback-panel__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(76, 137, 219, 0.15);
+  border: 1px solid rgba(76, 137, 219, 0.35);
+  font-size: 11px;
+  color: #2a5fa8;
+  font-weight: 500;
+}
+
+.admin-feedback-panel__tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: #2a5fa8;
+  opacity: 0.6;
+  border-radius: 50%;
+  transition: opacity 0.15s;
+}
+
+.admin-feedback-panel__tag-remove:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.admin-feedback-panel__tag-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-feedback-panel__tag-input {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(76, 137, 219, 0.4);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  color: #29476d;
+  outline: none;
+  width: 100px;
+  transition: border-color 0.15s;
+}
+
+.admin-feedback-panel__tag-input:focus {
+  border-color: #4c89db;
+}
+
+.admin-feedback-panel__tag-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(76, 137, 219, 0.5);
+  background: rgba(76, 137, 219, 0.12);
+  color: #2a5fa8;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.admin-feedback-panel__tag-btn:hover:not(:disabled) {
+  background: rgba(76, 137, 219, 0.25);
+}
+
+.admin-feedback-panel__tag-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.admin-feedback-panel__item-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #c0392b;
+}
+
+.admin-feedback-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-feedback-panel__delete-confirm-text {
+  font-size: 12px;
+  color: #7a3a2e;
+}
+
+.admin-feedback-panel__btn {
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.admin-feedback-panel__btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.admin-feedback-panel__btn--danger {
+  border-color: rgba(192, 57, 43, 0.4);
+  background: rgba(192, 57, 43, 0.08);
+  color: #a93226;
+}
+
+.admin-feedback-panel__btn--danger:hover:not(:disabled) {
+  background: rgba(192, 57, 43, 0.18);
+}
+
+.admin-feedback-panel__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .top-controls .view-nav {
   flex: 0 0 auto;
   margin-inline: 0;
