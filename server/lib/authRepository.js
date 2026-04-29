@@ -377,13 +377,24 @@ async function findUserById(userId) {
 }
 
 function validateHierarchyRoles(managerRole, employeeRole) {
-  if (mapRoleToAuthRole(managerRole) !== 'line_manager') {
-    throw new Error('Руководителем в связке может быть только пользователь с ролью Линейный руководитель.');
+  const normalizedManagerRole = mapRoleToAuthRole(managerRole);
+  const normalizedEmployeeRole = mapRoleToAuthRole(employeeRole);
+
+  if (normalizedManagerRole === 'line_manager') {
+    if (normalizedEmployeeRole !== 'employee') {
+      throw new Error('Подчиненным линейного руководителя может быть только пользователь с ролью Сотрудник.');
+    }
+    return;
   }
 
-  if (mapRoleToAuthRole(employeeRole) !== 'employee') {
-    throw new Error('Подчиненным в связке может быть только пользователь с ролью Сотрудник.');
+  if (normalizedManagerRole === 'support_sales_head') {
+    if (normalizedEmployeeRole !== 'support_sales_manager') {
+      throw new Error('Подчиненным руководителя поддержки корпоративных продаж может быть только пользователь с ролью Менеджер отдела корпоративных продаж.');
+    }
+    return;
   }
+
+  throw new Error('Руководителем в связке может быть только Линейный руководитель или Руководитель поддержки корпоративных продаж.');
 }
 
 export async function assignDirectReport(managerUserId, employeeUserId) {
