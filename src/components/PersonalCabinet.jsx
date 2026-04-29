@@ -17,7 +17,8 @@ const FILTERS = [
   { key: 'split',   label: 'Два столбца' },
 ];
 
-const SUPERVISOR_ROLES = new Set(['line_manager', 'full_manager', 'administrator']);
+const SUPERVISOR_ROLES = new Set(['line_manager', 'full_manager', 'administrator', 'support_sales_head']);
+const OPTIONAL_REPORT_ROLES = new Set(['support_sales_head', 'support_sales_manager']);
 const EMPLOYEE_SCOPE_VALUES = {
   SELF: 'self',
   TEAM: 'team',
@@ -243,6 +244,18 @@ function isReportFilled(activity) {
   return activity.reportFilled === true;
 }
 
+function isActivityReportRequired(activity, currentUserRole) {
+  const participantRoles = Array.isArray(activity?.participantRoles)
+    ? activity.participantRoles.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+
+  if (participantRoles.length > 0) {
+    return participantRoles.some((role) => !OPTIONAL_REPORT_ROLES.has(role));
+  }
+
+  return !OPTIONAL_REPORT_ROLES.has(String(currentUserRole || '').trim());
+}
+
 function CabinetAttentionItem({ activity, tone, label, meta, details, actionLabel, onAction }) {
   return (
     <div className={`cabinet-attention-item cabinet-attention-item--${tone}`}>
@@ -337,7 +350,7 @@ function CabinetFocusSection({ section, onReportClick, todayKey, tomorrowKey }) 
  *
  * @param {{ activity: import('../services/activitiesApi').Activity, onEdit?: Function, onDelete?: Function, onReportClick?: Function }} props
  */
-function CabinetEventCard({ activity, onEdit, onDelete, onReportClick, showReportStatus = false }) {
+function CabinetEventCard({ activity, onEdit, onDelete, onReportClick, showReportStatus = false, reportRequired = true }) {
   const isPrivate  = isPrivateActivity(activity);
   const isExternal = activity.eventType === 'external';
   const canEdit   = typeof onEdit === 'function';
@@ -373,7 +386,7 @@ function CabinetEventCard({ activity, onEdit, onDelete, onReportClick, showRepor
           >
             {getActivityAudienceLabel(activity)}
           </span>
-          {showReportStatus && (
+          {showReportStatus && reportRequired && (
             <span
               className={`cabinet-badge ${
                 reportFilled ? 'cabinet-badge--report-filled' : 'cabinet-badge--report-missing'
@@ -381,6 +394,9 @@ function CabinetEventCard({ activity, onEdit, onDelete, onReportClick, showRepor
             >
               {reportFilled ? 'отчет заполнен' : 'отчет не заполнен'}
             </span>
+          )}
+          {showReportStatus && !reportRequired && reportFilled && (
+            <span className="cabinet-badge cabinet-badge--report-filled">отчет заполнен</span>
           )}
           {reportHasDraft && (
             <span className="cabinet-badge cabinet-badge--draft">есть черновик</span>
@@ -964,13 +980,19 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
   );
 
   const pastFilledActivities = useMemo(
-    () => pastActivities.filter((activity) => isReportFilled(activity)),
-    [pastActivities],
+    () => pastActivities.filter((activity) => {
+      const reportRequired = isActivityReportRequired(activity, currentUserRole);
+      return isReportFilled(activity) || !reportRequired;
+    }),
+    [currentUserRole, pastActivities],
   );
 
   const pastMissingActivities = useMemo(
-    () => pastActivities.filter((activity) => !isReportFilled(activity)),
-    [pastActivities],
+    () => pastActivities.filter((activity) => {
+      const reportRequired = isActivityReportRequired(activity, currentUserRole);
+      return reportRequired && !isReportFilled(activity);
+    }),
+    [currentUserRole, pastActivities],
   );
 
   const todayActivities = useMemo(
@@ -2010,6 +2032,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                               key={activity.id}
                               activity={activity}
                               onReportClick={onReportClick}
+                              reportRequired={isActivityReportRequired(activity, currentUserRole)}
                               showReportStatus
                             />
                           ))
@@ -2026,7 +2049,7 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                     onClick={() => setIsPastFilledOpen((value) => !value)}
                   >
                     <span className="cabinet__col-dot cabinet__col-dot--public" />
-                    С заполненным отчетом
+                    История мероприятий
                     <span className="cabinet__filter-count">{pastFilledActivities.length}</span>
                     <span className={`cabinet__accordion-arrow${isPastFilledOpen ? ' cabinet__accordion-arrow--open' : ''}`}>
                       <ChevronDown size={14} aria-hidden="true" />
@@ -2037,13 +2060,14 @@ function PersonalCabinet({ activities, currentUser, currentUserRole, canManageHi
                     <div className="cabinet__accordion-body">
                       <div className="cabinet__col-list cabinet__col-list--past">
                         {pastFilledActivities.length === 0 ? (
-                          <div className="no-activities">Нет прошедших с заполненным отчетом</div>
+                          <div className="no-activities">Нет прошедших мероприятий</div>
                         ) : (
                           pastFilledActivities.map((activity) => (
                             <CabinetEventCard
                               key={activity.id}
                               activity={activity}
                               onReportClick={onReportClick}
+                              reportRequired={isActivityReportRequired(activity, currentUserRole)}
                               showReportStatus
                             />
                           ))

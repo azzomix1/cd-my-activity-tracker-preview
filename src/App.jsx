@@ -9,6 +9,7 @@ import { CALENDAR_VIEW_MODES, usePublicCalendar } from './hooks/usePublicCalenda
 import { buildReportOwnerKey } from './services/reportsApi';
 import { fetchTeamUsers } from './services/teamApi';
 import { SESSION_STATUSES, useAuthSession } from './auth/sessionContext.jsx';
+import { canCreatePrivateActivities } from './auth/accessPolicy';
 import './App.css';
 
 const ActivityModal = lazy(() => import('./components/ActivityModal'));
@@ -39,6 +40,8 @@ const ROLE_LABELS = {
   employee: 'Сотрудник',
   line_manager: 'Линейный руководитель',
   full_manager: 'Руководитель (полный)',
+  support_sales_head: 'Руководитель отдела поддержки корпоративных продаж',
+  support_sales_manager: 'Менеджер отдела корпоративных продаж',
 };
 
 function readStoredPublicCalendarSettings() {
@@ -686,7 +689,9 @@ function App() {
 
   const currentUserDisplayName = session.user?.displayName || session.user?.email || 'Пользователь';
   const currentUserRoleLabel = ROLE_LABELS[session.role] || 'Сотрудник';
-  const canManageHierarchy = session.role === 'administrator' || session.role === 'full_manager';
+  const canManageHierarchy = session.role === 'administrator'
+    || session.role === 'full_manager'
+    || session.role === 'support_sales_head';
 
   return (
     <div className={`container${view === 'cabinet' ? ' container--cabinet' : ''}`}>
@@ -994,6 +999,7 @@ function App() {
           selectedDate={selectedDate}
           suggestions={suggestions}
           assignableUsers={assignableUsers}
+          allowPrivateVisibility={canCreatePrivateActivities(session.role)}
           isSubmitting={isSaving}
           submitError={modalSubmitError}
         />

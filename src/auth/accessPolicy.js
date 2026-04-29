@@ -4,7 +4,14 @@ export const AUTH_ROLES = {
   EMPLOYEE: 'employee',
   LINE_MANAGER: 'line_manager',
   FULL_MANAGER: 'full_manager',
+  SUPPORT_SALES_HEAD: 'support_sales_head',
+  SUPPORT_SALES_MANAGER: 'support_sales_manager',
 };
+
+export const OPTIONAL_REPORT_ROLES = new Set([
+  AUTH_ROLES.SUPPORT_SALES_HEAD,
+  AUTH_ROLES.SUPPORT_SALES_MANAGER,
+]);
 
 export const ACTIVITY_VISIBILITY = {
   PUBLIC: 'public',
@@ -73,7 +80,35 @@ export const ACCESS_MATRIX = {
     [ACCESS_ACTIONS.VIEW_ALL_ACTIVITIES]: true,
     [ACCESS_ACTIONS.MANAGE_ALL_ACTIVITIES]: true,
   },
+  [AUTH_ROLES.SUPPORT_SALES_HEAD]: {
+    [ACCESS_ACTIONS.VIEW_PUBLIC_CALENDAR]: true,
+    [ACCESS_ACTIONS.ACCESS_CABINET]: true,
+    [ACCESS_ACTIONS.CREATE_ACTIVITY]: true,
+    [ACCESS_ACTIONS.UPDATE_OWN_ACTIVITY]: true,
+    [ACCESS_ACTIONS.DELETE_OWN_ACTIVITY]: true,
+    [ACCESS_ACTIONS.FILL_OWN_REPORT]: true,
+    [ACCESS_ACTIONS.VIEW_ALL_ACTIVITIES]: true,
+    [ACCESS_ACTIONS.MANAGE_ALL_ACTIVITIES]: true,
+  },
+  [AUTH_ROLES.SUPPORT_SALES_MANAGER]: {
+    [ACCESS_ACTIONS.VIEW_PUBLIC_CALENDAR]: true,
+    [ACCESS_ACTIONS.ACCESS_CABINET]: true,
+    [ACCESS_ACTIONS.CREATE_ACTIVITY]: true,
+    [ACCESS_ACTIONS.UPDATE_OWN_ACTIVITY]: true,
+    [ACCESS_ACTIONS.DELETE_OWN_ACTIVITY]: true,
+    [ACCESS_ACTIONS.FILL_OWN_REPORT]: true,
+    [ACCESS_ACTIONS.VIEW_ALL_ACTIVITIES]: true,
+    [ACCESS_ACTIONS.MANAGE_ALL_ACTIVITIES]: true,
+  },
 };
+
+export function isOptionalReportRole(role) {
+  return OPTIONAL_REPORT_ROLES.has(String(role || '').trim());
+}
+
+export function canCreatePrivateActivities(role) {
+  return !isOptionalReportRole(role);
+}
 
 /**
  * Возвращает права для роли. Для неизвестной роли применяется anonymous.

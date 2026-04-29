@@ -8,6 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL?.trim();
  * @property {string} employeeUserId Идентификатор сотрудника из таблицы пользователей.
  * @property {string[]} participantUserIds Идентификаторы сотрудников-участников.
  * @property {string[]} participantNames Отображаемые имена участников.
+ * @property {string[]} participantRoles Роли сотрудников-участников.
  * @property {string} date Дата в формате `DD.MM.YYYY`.
  * @property {string} time Время в формате `HH:mm`.
  * @property {string} name Название активности.
@@ -127,12 +128,16 @@ export function normalizeActivity(activity = {}) {
   const participantNames = Array.isArray(activity.participantNames)
     ? activity.participantNames.map((item) => String(item || '')).filter(Boolean)
     : [];
+  const participantRoles = Array.isArray(activity.participantRoles)
+    ? activity.participantRoles.map((item) => String(item || '')).filter(Boolean)
+    : [];
 
   return {
     id: String(activity.id ?? ''),
     employeeUserId: String(activity.employeeUserId ?? ''),
     participantUserIds,
     participantNames,
+    participantRoles,
     date: normalizeDateValue(activity.date),
     time: normalizeTimeValue(activity.time),
     name: activity.name ?? '',

@@ -78,12 +78,16 @@ export function mapDbRowToActivity(row) {
   const participantNames = Array.isArray(row.participant_names)
     ? row.participant_names.map((item) => String(item || '')).filter(Boolean)
     : [];
+  const participantRoles = Array.isArray(row.participant_roles)
+    ? row.participant_roles.map((item) => String(item || '')).filter(Boolean)
+    : [];
 
   return {
     id: String(row.id),
     employeeUserId: row.employee_user_id ? String(row.employee_user_id) : '',
     participantUserIds,
     participantNames,
+    participantRoles,
     date: eventDate,
     time: eventTime,
     name: row.name || '',

@@ -145,7 +145,7 @@ function requireHierarchyAdmin(request, response, next) {
   }
 
   const role = String(request.auth.role || '').trim().toLowerCase();
-  const allowed = role === 'administrator' || role === 'full_manager';
+  const allowed = role === 'administrator' || role === 'full_manager' || role === 'support_sales_head';
 
   if (!allowed) {
     response.status(403).json({ success: false, error: 'Недостаточно прав для управления иерархией.' });
@@ -162,10 +162,35 @@ function requireTeamSummaryAccess(request, response, next) {
   }
 
   const role = String(request.auth.role || '').trim().toLowerCase();
-  const allowed = role === 'administrator' || role === 'full_manager' || role === 'line_manager';
+  const allowed = role === 'administrator'
+    || role === 'full_manager'
+    || role === 'line_manager'
+    || role === 'support_sales_head';
 
   if (!allowed) {
     response.status(403).json({ success: false, error: 'Недостаточно прав для просмотра сводки команды.' });
+    return;
+  }
+
+  next();
+}
+
+function requireNoPrivateActivitiesForSupportSales(request, response, next) {
+  const role = String(request.auth?.role || '').trim().toLowerCase();
+  const isSupportRole = role === 'support_sales_head' || role === 'support_sales_manager';
+
+  if (!isSupportRole) {
+    next();
+    return;
+  }
+
+  const visibility = String(request.body?.activity?.visibility || '').trim().toLowerCase();
+
+  if (visibility === 'private' || visibility === 'личное') {
+    response.status(400).json({
+      success: false,
+      error: 'Для ролей отдела корпоративных продаж личные мероприятия недоступны.',
+    });
     return;
   }
 
@@ -430,7 +455,7 @@ app.get('/api/activities', requireAuth, async (_request, response) => {
   }
 });
 
-app.post('/api/activities', requireAuth, requirePersonAssignmentAccess, async (request, response) => {
+app.post('/api/activities', requireAuth, requireNoPrivateActivitiesForSupportSales, requirePersonAssignmentAccess, async (request, response) => {
   try {
     const item = await createActivity(request.body?.activity || {});
     response.status(201).json({ success: true, item });
@@ -439,7 +464,7 @@ app.post('/api/activities', requireAuth, requirePersonAssignmentAccess, async (r
   }
 });
 
-app.put('/api/activities/:id', requireAuth, requirePersonAssignmentAccess, async (request, response) => {
+app.put('/api/activities/:id', requireAuth, requireNoPrivateActivitiesForSupportSales, requirePersonAssignmentAccess, async (request, response) => {
   try {
     const item = await updateActivity(request.params.id, request.body?.activity || {});
     response.json({ success: true, item });

@@ -20,7 +20,8 @@ export async function listActivities() {
         a.event_type,
         a.visibility,
         coalesce(array_remove(array_agg(ap.employee_user_id order by ap.employee_user_id), null), '{}') as participant_user_ids,
-        coalesce(array_remove(array_agg(coalesce(u.display_name, u.email, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_names
+        coalesce(array_remove(array_agg(coalesce(u.display_name, u.email, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_names,
+        coalesce(array_remove(array_agg(coalesce(u.role, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_roles
       from activities a
       left join activity_participants ap on ap.activity_id = a.id
       left join app_users u on u.id = ap.employee_user_id
@@ -46,7 +47,8 @@ export async function listPublicActivities() {
         a.event_type,
         a.visibility,
         coalesce(array_remove(array_agg(ap.employee_user_id order by ap.employee_user_id), null), '{}') as participant_user_ids,
-        coalesce(array_remove(array_agg(coalesce(u.display_name, u.email, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_names
+        coalesce(array_remove(array_agg(coalesce(u.display_name, u.email, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_names,
+        coalesce(array_remove(array_agg(coalesce(u.role, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_roles
       from activities a
       left join activity_participants ap on ap.activity_id = a.id
       left join app_users u on u.id = ap.employee_user_id
@@ -122,7 +124,8 @@ export async function createActivity(activity) {
           a.event_type,
           a.visibility,
           coalesce(array_remove(array_agg(ap.employee_user_id order by ap.employee_user_id), null), '{}') as participant_user_ids,
-          coalesce(array_remove(array_agg(coalesce(u.display_name, u.email, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_names
+          coalesce(array_remove(array_agg(coalesce(u.display_name, u.email, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_names,
+          coalesce(array_remove(array_agg(coalesce(u.role, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_roles
         from activities a
         left join activity_participants ap on ap.activity_id = a.id
         left join app_users u on u.id = ap.employee_user_id
@@ -213,7 +216,8 @@ export async function updateActivity(id, activity) {
           a.event_type,
           a.visibility,
           coalesce(array_remove(array_agg(ap.employee_user_id order by ap.employee_user_id), null), '{}') as participant_user_ids,
-          coalesce(array_remove(array_agg(coalesce(u.display_name, u.email, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_names
+          coalesce(array_remove(array_agg(coalesce(u.display_name, u.email, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_names,
+          coalesce(array_remove(array_agg(coalesce(u.role, '') order by coalesce(u.display_name, u.email, '')), ''), '{}') as participant_roles
         from activities a
         left join activity_participants ap on ap.activity_id = a.id
         left join app_users u on u.id = ap.employee_user_id

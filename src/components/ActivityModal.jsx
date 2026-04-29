@@ -62,6 +62,7 @@ function createInitialFormData(activity, selectedDate) {
  * @param {Date|null} props.selectedDate Выбранная дата календаря.
  * @param {{names: string[], persons: string[], objects: string[]}} props.suggestions Данные автодополнения.
  * @param {{id: string, displayName?: string, email?: string}[]} [props.assignableUsers=[]] Сотрудники, которых можно назначить в мероприятие.
+ * @param {boolean} [props.allowPrivateVisibility=true] Доступна ли личная видимость для текущей роли.
  * @param {boolean} props.isSubmitting Флаг отправки формы.
  * @returns {JSX.Element|null} JSX модального окна либо `null`, если окно закрыто.
  */
@@ -73,6 +74,7 @@ function ActivityModal({
   selectedDate,
   suggestions,
   assignableUsers = [],
+  allowPrivateVisibility = true,
   isSubmitting,
   submitError,
 }) {
@@ -202,7 +204,7 @@ function ActivityModal({
       person: participantNames.join(', '),
       objects: formData.objectItems.map((item) => item.trim()).filter(Boolean).join(', '),
       eventType: formData.eventType,
-      visibility: formData.visibility,
+      visibility: allowPrivateVisibility ? formData.visibility : 'public',
     };
 
     await onSave(activityData, isEditMode);
@@ -385,8 +387,11 @@ function ActivityModal({
               required
             >
               <option value="public">Публичное</option>
-              <option value="private">Личное</option>
+              {allowPrivateVisibility && <option value="private">Личное</option>}
             </select>
+            {!allowPrivateVisibility && (
+              <small className="form-help">Для вашей роли доступны только публичные мероприятия.</small>
+            )}
           </div>
 
           {displayError && (

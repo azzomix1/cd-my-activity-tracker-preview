@@ -119,7 +119,12 @@ export async function getTeamSummary({ employees = [], startDate, endDate }) {
         count(a.id)::int as total_activities,
         count(r.activity_id)::int as completed_reports,
         count(d.activity_id)::int as draft_reports,
-        count(*) filter (where a.id is not null and a.event_date < current_date and r.activity_id is null)::int as missing_reports,
+        count(*) filter (
+          where a.id is not null
+            and a.event_date < current_date
+            and r.activity_id is null
+            and coalesce(u.role, 'employee') not in ('support_sales_head', 'support_sales_manager')
+        )::int as missing_reports,
         coalesce(sum(case when r.activity_id is not null then ${notificationsMetric} else 0 end), 0)::int as notifications_total,
         coalesce(sum(case when r.activity_id is not null then ${subscriptionsMetric} else 0 end), 0)::int as telegram_subscriptions_total
       from unnest($1::text[]) as scope(employee_user_id)

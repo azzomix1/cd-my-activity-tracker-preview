@@ -73,12 +73,18 @@ export async function createUser({ email, password, displayName = '', role = 'em
   const normalizedRole = rawRole === 'administrator'
     || rawRole === 'line_manager'
     || rawRole === 'full_manager'
+    || rawRole === 'support_sales_head'
+    || rawRole === 'support_sales_manager'
     || rawRole === 'employee'
       ? rawRole
       : rawRole === 'admin'
         ? 'administrator'
         : rawRole === 'manager'
           ? 'full_manager'
+          : rawRole === 'sales_head'
+            ? 'support_sales_head'
+            : rawRole === 'sales_manager'
+              ? 'support_sales_manager'
           : 'employee';
   const passwordHash = buildPasswordHash(password);
 
@@ -283,6 +289,31 @@ export async function listUsersForTeamPanel({ role, userId }) {
     }));
   }
 
+  if (normalizedRole === 'support_sales_head') {
+    const result = await query(
+      `
+        select
+          id,
+          email,
+          display_name,
+          role,
+          is_active
+        from app_users
+        where is_active = true
+          and role = 'support_sales_manager'
+        order by display_name asc, email asc
+      `,
+    );
+
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      email: String(row.email || ''),
+      displayName: String(row.display_name || ''),
+      role: mapRoleToAuthRole(row.role),
+      isActive: Boolean(row.is_active),
+    }));
+  }
+
   return [];
 }
 
@@ -442,6 +473,14 @@ export function mapRoleToAuthRole(role) {
 
   if (normalized === 'full_manager' || normalized === 'manager') {
     return 'full_manager';
+  }
+
+  if (normalized === 'support_sales_head' || normalized === 'sales_head') {
+    return 'support_sales_head';
+  }
+
+  if (normalized === 'support_sales_manager' || normalized === 'sales_manager') {
+    return 'support_sales_manager';
   }
 
   return 'employee';

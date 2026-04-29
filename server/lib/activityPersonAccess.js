@@ -60,6 +60,10 @@ function isPrivilegedRole(role) {
   return role === 'administrator' || role === 'full_manager';
 }
 
+function isSupportSalesRole(role) {
+  return role === 'support_sales_head' || role === 'support_sales_manager';
+}
+
 /**
  * Проверяет право пользователя указывать поле `person` при создании/редактировании активности.
  *
@@ -133,6 +137,90 @@ export async function canAssignActivityPerson({ auth, targetEmployeeUserId, targ
       reason: allowed
         ? ''
         : 'Сотрудник может назначать мероприятие только на себя или без сотрудника.',
+    };
+  }
+
+  if (normalizedRole === 'support_sales_manager') {
+    const requestedIds = normalizedTargetEmployeeUserIds.length > 0
+      ? normalizedTargetEmployeeUserIds
+      : (normalizedTargetEmployeeUserId ? [normalizedTargetEmployeeUserId] : []);
+    const ownUserId = String(auth?.userId || '').trim();
+
+    if (requestedIds.length > 0) {
+      const allowedByIds = requestedIds.every((item) => item === ownUserId);
+
+      return {
+        allowed: allowedByIds,
+        reason: allowedByIds
+          ? ''
+          : 'Менеджер корпоративных продаж может назначать мероприятие только на себя или без сотрудника.',
+      };
+    }
+
+    const requestedPersons = normalizedTargetPersons.length > 0
+      ? normalizedTargetPersons
+      : (normalizedTarget ? [normalizedTarget] : []);
+    const ownAliases = buildUserAliases(auth);
+    const allowed = requestedPersons.every((item) => ownAliases.has(item));
+
+    return {
+      allowed,
+      reason: allowed
+        ? ''
+        : 'Менеджер корпоративных продаж может назначать мероприятие только на себя или без сотрудника.',
+    };
+  }
+
+  if (normalizedRole === 'support_sales_head') {
+    const ownUserId = String(auth?.userId || '').trim();
+    const supportManagersResult = await query(
+      `
+        select id, email, display_name
+        from app_users
+        where is_active = true
+          and role = 'support_sales_manager'
+      `,
+    );
+    const supportManagerIds = new Set(supportManagersResult.rows.map((row) => String(row.id || '').trim()).filter(Boolean));
+
+    const requestedIds = normalizedTargetEmployeeUserIds.length > 0
+      ? normalizedTargetEmployeeUserIds
+      : (normalizedTargetEmployeeUserId ? [normalizedTargetEmployeeUserId] : []);
+
+    if (requestedIds.length > 0) {
+      const allowedByIds = requestedIds.every((item) => item === ownUserId || supportManagerIds.has(item));
+
+      return {
+        allowed: allowedByIds,
+        reason: allowedByIds
+          ? ''
+          : 'Руководитель поддержки корпоративных продаж может назначать мероприятие только себе, менеджерам отдела или без сотрудника.',
+      };
+    }
+
+    const availableAliases = new Set();
+    buildUserAliases(auth).forEach((alias) => availableAliases.add(alias));
+    supportManagersResult.rows.forEach((row) => {
+      buildUserAliases(row).forEach((alias) => availableAliases.add(alias));
+    });
+
+    const requestedPersons = normalizedTargetPersons.length > 0
+      ? normalizedTargetPersons
+      : (normalizedTarget ? [normalizedTarget] : []);
+    const allowed = requestedPersons.every((item) => availableAliases.has(item));
+
+    return {
+      allowed,
+      reason: allowed
+        ? ''
+        : 'Руководитель поддержки корпоративных продаж может назначать мероприятие только себе, менеджерам отдела или без сотрудника.',
+    };
+  }
+
+  if (isSupportSalesRole(normalizedRole)) {
+    return {
+      allowed: false,
+      reason: 'Недостаточно прав для назначения сотрудника в мероприятии.',
     };
   }
 

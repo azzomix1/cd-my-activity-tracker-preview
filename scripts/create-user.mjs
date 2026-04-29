@@ -10,15 +10,21 @@ async function main() {
     || roleArg === 'employee'
     || roleArg === 'line_manager'
     || roleArg === 'full_manager'
+    || roleArg === 'support_sales_head'
+    || roleArg === 'support_sales_manager'
       ? roleArg
       : roleArg === 'admin'
         ? 'administrator'
         : roleArg === 'manager'
           ? 'full_manager'
+          : roleArg === 'sales_head'
+            ? 'support_sales_head'
+            : roleArg === 'sales_manager'
+              ? 'support_sales_manager'
           : 'employee';
 
   if (!email || !password) {
-    throw new Error('Usage: npm run auth:create-user -- <email> <password> [displayName] [administrator|employee|line_manager|full_manager]');
+    throw new Error('Usage: npm run auth:create-user -- <email> <password> [displayName] [administrator|employee|line_manager|full_manager|support_sales_head|support_sales_manager]');
   }
 
   const createdUser = await createUser({
